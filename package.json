@@ -1,0 +1,38 @@
+{
+  "name": "nivuus-agent",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "node --loader ts-node/esm index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:executable": "npm run build && pkg dist/index.js --targets node18-linux-x64 --output nivuus-agent-linux"
+  },
+  "author": "",
+  "type": "module",
+  "license": "ISC",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@google/generative-ai": "^0.24.0",
+    "@types/lodash": "^4.17.16",
+    "@types/node-cleanup": "^2.1.5",
+    "axios": "^1.8.4",
+    "chalk": "^5.4.1",
+    "dotenv": "^16.5.0",
+    "lodash": "^4.17.21",
+    "node-cleanup": "^2.1.2",
+    "openai": "^4.95.0",
+    "ora": "^8.2.0"
+  },
+  "devDependencies": {
+    "@types/axios": "^0.14.4",
+    "@types/dotenv": "^8.2.3",
+    "@types/node": "^22.14.1",
+    "@types/ora": "^3.2.0",
+    "pkg": "^5.8.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
+}

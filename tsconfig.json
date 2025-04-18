@@ -1,0 +1,59 @@
+{
+  "compilerOptions": {
+    /* Base Options: */
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "target": "ES2022", // Or a newer target if preferred
+    "allowJs": true, // Allow JavaScript files to be compiled (useful during transition)
+    "resolveJsonModule": true,
+    "moduleDetection": "force",
+    "isolatedModules": true, // Recommended for tools like Babel or esbuild
+
+    /* Strictness */
+    "strict": true,
+    "noUncheckedIndexedAccess": true, // Recommended for stricter array/object access checks
+    "checkJs": false, // Don't type-check JS files by default
+
+    /* If NOT transpiling with Babel: */
+    "module": "NodeNext", // Use Node.js's native ESM support
+    "outDir": "dist", // Output directory for compiled JS
+
+    /* If your code runs in the DOM: */
+    // "lib": ["es2022", "dom", "dom.iterable"],
+
+    /* If your code doesn't run in the DOM: */
+    "lib": ["ES2022"],
+
+    /* Source Map Options */
+    "sourceMap": true, // Generate source maps for debugging
+
+    /* Type Checking */
+    "noImplicitAny": true, // Require explicit 'any' type
+    "strictNullChecks": true, // Handle null and undefined strictly
+    "strictFunctionTypes": true, // Check function parameter variance
+    "strictPropertyInitialization": true, // Ensure class properties are initialized
+    "noImplicitThis": true, // Check 'this' expressions
+    "useUnknownInCatchVariables": true, // Use 'unknown' instead of 'any' in catch clauses
+    "alwaysStrict": true, // Parse in strict mode and emit "use strict"
+
+    /* Module Resolution */
+    "moduleResolution": "NodeNext", // Match Node.js module resolution
+    "baseUrl": ".", // Base directory for non-relative module imports
+    "paths": { // Path mapping (optional, adjust as needed)
+      "@src/*": ["src/*"]
+    },
+
+    /* Emit */
+    "declaration": true, // Generate corresponding '.d.ts' files
+    "declarationMap": true, // Generate source maps for '.d.ts' files
+    "newLine": "lf", // Use LF line endings
+
+    /* Interop Constraints */
+    "forceConsistentCasingInFileNames": true, // Ensure consistent file casing
+
+    /* Completeness */
+    "skipDefaultLibCheck": true // Skip type checking of default library declaration files
+  },
+  "include": ["src/**/*.ts", "index.ts"], // Files to include in compilation
+  "exclude": ["node_modules", "dist"] // Folders to exclude
+}

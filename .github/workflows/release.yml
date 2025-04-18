@@ -1,0 +1,36 @@
+name: Create Release and Upload Executable
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger on tags like v1.0.0, v1.1.0, etc.
+
+permissions:
+  contents: write # Needed to create releases and upload assets
+
+jobs:
+  build-release:
+    name: Build and Release Linux Executable
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18' # Match the target in package.json
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci # Use ci for faster, more reliable installs in CI
+
+      - name: Build executable
+        run: npm run build:executable
+
+      - name: Create Release and Upload Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: nivuus-agent-linux # The name of the built executable
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Provided by GitHub Actions
