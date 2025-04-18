@@ -6,11 +6,21 @@
 
 ## 🚀 Quick Start
 
-1.  **Prerequisites:** Node.js (v18+), npm, and an OpenAI API key.
+### Option 1: Download & Run Latest Release
+
+Cette commande télécharge la dernière version de l'exécutable Linux depuis le dépôt GitHub, le rend exécutable, et le lance en passant votre clé API OpenAI. Remplacez `<VOTRE_CLE_API_OPENAI>` par votre clé réelle.
+
+```bash
+curl -LJO https://github.com/maximeallanic/nivuus-agent/releases/latest/download/nivuus-agent-linux && chmod +x nivuus-agent-linux && ./nivuus-agent-linux --api-key=<VOTRE_CLE_API_OPENAI>
+```
+
+### Option 2: Build from Source
+
+1.  **Prerequisites:** Node.js (v18+), npm, et une OpenAI API key.
 2.  **Clone (if needed) & Install:**
     ```bash
-    # git clone <your_repo_url> # If cloning
-    # cd nivuus-agent
+    git clone https://github.com/maximeallanic/nivuus-agent.git # Clone the repo
+    cd nivuus-agent
     npm install
     ```
 3.  **Configure API Key:**
@@ -18,13 +28,26 @@
         ```
         OPENAI_API_KEY=sk-YourKeyHere
         ```
-    *   *Alternative:* Directly modify `src/config.js` (less secure).
+    *   *Alternative:* Pass it via command line: `npm start -- --api-key=sk-YourKeyHere`
+    *   *Alternative:* Directly modify `src/config.ts` (less secure).
 4.  **Launch the Agent:**
     ```bash
-    npm start
+    npm start # Or: npm start -- --api-key=sk-YourKeyHere
     ```
 
 The agent will start, potentially analyze your system, and then wait for your instructions or propose actions.
+
+## 🔑 Obtaining an OpenAI API Key
+
+Pour utiliser Nivuus Agent, vous avez besoin d'une clé API OpenAI. Voici comment en obtenir une :
+
+1.  **Créez un compte OpenAI :** Allez sur [platform.openai.com](https://platform.openai.com/) et inscrivez-vous ou connectez-vous.
+2.  **Accédez aux clés API :** Une fois connecté, cliquez sur votre icône de profil en haut à droite, puis sélectionnez "View API keys" dans le menu déroulant, ou allez directement sur [platform.openai.com/api-keys](https://platform.openai.com/api-keys).
+3.  **Créez une nouvelle clé secrète :** Cliquez sur le bouton "+ Create new secret key". Donnez-lui un nom reconnaissable (par exemple, "NivuusAgentKey").
+4.  **Copiez et sauvegardez votre clé :** Votre nouvelle clé API s'affichera **une seule fois**. Copiez-la immédiatement et conservez-la en lieu sûr. Vous ne pourrez pas la revoir après avoir fermé la fenêtre.
+5.  **Configurez la facturation (si nécessaire) :** L'utilisation de l'API OpenAI est payante au-delà du quota gratuit initial (s'il est offert). Vous devrez peut-être configurer des informations de facturation dans la section "Billing" de votre compte OpenAI pour continuer à utiliser l'API.
+
+**Important :** Traitez votre clé API comme un mot de passe. Ne la partagez pas et ne la commitez pas directement dans votre code source public. Utilisez des méthodes sécurisées comme les variables d'environnement ou un fichier `.env`.
 
 ## ✨ Why Nivuus Agent?
 

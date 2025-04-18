@@ -8,7 +8,6 @@ import type {
 import chalk from "chalk";
 // Import AxiosError for type checking
 import axios, { AxiosError } from "axios"; // For web search
-import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import ora from 'ora'; // Spinner
 import fs from 'node:fs'; // Synchronous fs for emergency save
@@ -93,8 +92,8 @@ if (apiKeyArg) {
 // --- Global Initialization ---
 // Use the determined API key
 const openai = new OpenAI({ apiKey: apiKeyToUse });
-// Determine the filename of agent.js itself
-const SCRIPT_FILENAME = path.basename(fileURLToPath(import.meta.url));
+// Determine the filename of agent.js itself using CommonJS global
+const SCRIPT_FILENAME = path.basename(__filename);
 
 let conversationHistory: ChatMessage[] = [];
 // Initialize agentMemory here to inject it

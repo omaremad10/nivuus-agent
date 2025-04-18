@@ -3,12 +3,13 @@
   "version": "1.0.0",
   "description": "",
   "main": "dist/index.js",
+  "bin": "dist/index.js",
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "node --loader ts-node/esm index.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build:executable": "npm run build && pkg dist/index.js --targets node18-linux-x64 --output nivuus-agent-linux"
+    "build:executable": "npm run build && pkg . --output nivuus-agent-linux --no-bytecode"
   },
   "author": "",
   "type": "module",
@@ -19,12 +20,12 @@
     "@types/lodash": "^4.17.16",
     "@types/node-cleanup": "^2.1.5",
     "axios": "^1.8.4",
-    "chalk": "^5.4.1",
+    "chalk": "^4.1.2",
     "dotenv": "^16.5.0",
     "lodash": "^4.17.21",
     "node-cleanup": "^2.1.2",
     "openai": "^4.95.0",
-    "ora": "^8.2.0"
+    "ora": "^5.4.1"
   },
   "devDependencies": {
     "@types/axios": "^0.14.4",
@@ -34,5 +35,15 @@
     "pkg": "^5.8.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
+  },
+  "pkg": {
+    "entrypoint": "dist/index.js",
+    "scripts": [
+      "dist/**/*.js",
+      "node_modules/axios/lib/**/*.js",
+      "node_modules/axios/dist/node/axios.cjs"
+    ],
+    "assets": [],
+    "targets": [ "node18-linux-x64" ]
   }
 }

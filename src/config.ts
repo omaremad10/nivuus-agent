@@ -1,9 +1,9 @@
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+// import { fileURLToPath } from 'node:url'; // No longer needed for __dirname
 import os from 'node:os';
 
 // Helper to get the directory name of the current module
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// const __dirname = path.dirname(fileURLToPath(import.meta.url)); // Remove this line, rely on global __dirname
 
 // --- Configuration ---
 
