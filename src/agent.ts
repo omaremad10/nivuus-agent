@@ -243,7 +243,6 @@ export async function main() {
 
     // Determine the first prompt to send to the AI
     const defaultInstruction = t('defaultInstruction');
-    let nextMessageContent: string | null = null; // Pour stocker la réponse de ask_user
     let isFirstIteration = true; // Pour gérer le tout premier message
 
     // Handler for CTRL+C (SIGINT) - Prioritize Save
@@ -293,28 +292,14 @@ export async function main() {
                     : defaultInstruction; // Reprise ou instruction par défaut
                 isFirstIteration = false;
                 console.log(chalk.dim(`[Agent] Starting with instruction: "${userMessageContent}"`));
-            } else if (nextMessageContent !== null) {
-                // Utiliser la réponse de l'utilisateur obtenue via ask_user
-                userMessageContent = nextMessageContent;
-                console.log(chalk.dim(`[Agent] Using user response: "${userMessageContent}"`));
-                nextMessageContent = null; // Réinitialiser
             } else {
                 // Message automatique pour continuer
-                userMessageContent = t('autoContinuePrompt'); // Correction: Supprimer le 2ème argument (default string)
+                userMessageContent = t('autoContinuePrompt');
                 console.log(chalk.dim(`[Agent] Sending auto-continue prompt.`));
-            }
-
-            // Quitter si l'utilisateur a répondu "quit" à ask_user
-            if (userMessageContent.toLowerCase() === 'quit') {
-                 console.log(chalk.yellow(t('userRequestedQuit'))); // Correction: Supprimer le 2ème argument
-                 break; // Sortir de la boucle while
             }
 
             // Ajouter le message utilisateur à l'historique
             conversationHistory.push({ role: "user", content: userMessageContent });
-
-            // Reset nextUserPrompt (qui n'est plus utilisé directement ici mais dans la logique d'erreur)
-            // nextUserPrompt = ""; // On peut commenter ou supprimer cette ligne
 
             let needsApiCall = true;
             while(needsApiCall) {
@@ -472,7 +457,6 @@ export async function main() {
                                     if (functionArgs.question) {
                                         functionResponse = await functionToCall(functionArgs.question);
                                         askUserCalled = true;
-                                        nextMessageContent = functionResponse; // Stocker pour la prochaine itération
                                     } else { throw new Error(`Missing 'question' argument for ask_user`); }
                                 } else if (functionName === 'run_bash_command') {
                                     if (functionArgs.command && functionArgs.purpose) {
@@ -550,14 +534,7 @@ export async function main() {
                     // Add all tool results to history
                     toolResults.forEach(toolMessage => conversationHistory.push(toolMessage));
 
-                    // Si ask_user a été appelé, on redémarre la boucle principale pour utiliser la réponse utilisateur
-                    if (askUserCalled) {
-                        console.log(chalk.dim(t('askUserCalledLoopRestart'))); // Correction: Supprimer le 2ème argument
-                        needsApiCall = false; // Sortir de la boucle while(needsApiCall)
-                        continue; // Redémarre la boucle principale while(true)
-                    }
-
-                    // --- Second API Call with Tool Results (seulement si ask_user n'a PAS été appelé) ---
+                    // --- Second API Call with Tool Results (will now always run if toolCalls existed) ---
                     const spinner2 = ora(t('sendingToolResults')).start(); // Use t()
 
                     // Prepare messages again for the second call, using the same robust logic
@@ -634,7 +611,9 @@ export async function main() {
 
             } // End while(needsApiCall)
 
-            // ... existing code ...
+            // Réinitialiser les états pour la prochaine itération automatique
+            isFirstIteration = false; // Ne pas redémarrer avec le prompt initial
+            // La boucle while(true) va simplement continuer
 
         } catch (error: unknown) { // Catch unknown
             // --- Main Loop Error Handling ---
@@ -715,7 +694,6 @@ export async function main() {
                 }
             }
             // Réinitialiser les états pour la prochaine itération automatique
-            nextMessageContent = null; // Assurer qu'on n'utilise pas une ancienne réponse de ask_user
             isFirstIteration = false; // Ne pas redémarrer avec le prompt initial
             // La boucle while(true) va simplement continuer avec "Continue."
 

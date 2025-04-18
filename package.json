@@ -12,7 +12,6 @@
     "build:executable": "npm run build && pkg . --output nivuus-agent-linux --no-bytecode"
   },
   "author": "",
-  "type": "module",
   "license": "ISC",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
