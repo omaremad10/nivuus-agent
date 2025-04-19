@@ -33,17 +33,31 @@ export function getUserInput(prompt: string): Promise<string> {
 }
 
 export async function getUserConfirmation(question: string): Promise<boolean> {
-    const yesStr = t('commandConfirmYes').toLowerCase();
-    const noStr = t('commandConfirmNo').toLowerCase();
-    while (true) {
-        const answer = await getUserInput(`${question} ${t('yesNo')}: `);
-        const lowerAnswer = answer.toLowerCase();
-        if (lowerAnswer === 'y' || lowerAnswer === 'o' || lowerAnswer === yesStr) {
-            return true;
+     return new Promise((resolve) => {
+        process.stdin.setRawMode(true);
+        process.stdin.resume();
+        process.stdin.setEncoding('utf8');
+        process.stdout.write(`${question} ${t('yesNo')}: `);
+        function onKeypress(key: string) {
+            const k = key.toLowerCase();
+            if (k === 'y' || k === 'o') {
+                process.stdout.write(k + '\n');
+                cleanup();
+                resolve(true);
+            } else if (k === 'n') {
+                process.stdout.write(k + '\n');
+                cleanup();
+                resolve(false);
+            } else if (k === '\u0003') { // Ctrl+C
+                cleanup();
+                process.exit();
+            }
         }
-        if (lowerAnswer === 'n' || lowerAnswer === noStr) {
-            return false;
+        function cleanup() {
+            process.stdin.setRawMode(false);
+            process.stdin.pause();
+            process.stdin.removeListener('data', onKeypress);
         }
-        console.log(chalk.yellow(t('pleaseAnswerYesNo')));
-    }
+        process.stdin.on('data', onKeypress);
+    });
 }
