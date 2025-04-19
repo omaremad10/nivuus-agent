@@ -104,7 +104,7 @@ export const tools = [
         type: "function",
         function: {
             name: "set_memory_value",
-            description: "Set a value at the given memory path.",
+            description: "Set or update a value at the given memory path in the agent's persistent memory. You MUST use this tool for any information, fact, or user preference you want to remember or persist between sessions. Never store persistent knowledge in your text responses—always use set_memory_value for memory.",
             parameters: {
                 type: "object",
                 properties: {
