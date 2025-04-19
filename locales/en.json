@@ -156,5 +156,6 @@
   "invalidYesNoInput": "Invalid input. Please enter 'y' or 'n'.",
   "otherLabel": "Other...",
   "customResponsePrompt": "Your custom response: ",
-  "invalidNumberInput": "Please enter a valid number."
+  "invalidNumberInput": "Please enter a valid number.",
+  "userPrompt": "Please enter your input:"
 }

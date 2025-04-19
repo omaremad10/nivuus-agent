@@ -130,20 +130,6 @@ export const tools = [
     {
         type: "function",
         function: {
-            name: "ask_user",
-            description: "Ask a question to the human user to get clarification or confirmation.",
-            parameters: {
-                type: "object",
-                properties: {
-                    question: { type: "string", description: "Question to ask the user." },
-                },
-                required: ["question"],
-            },
-        },
-    },
-    {
-        type: "function",
-        function: {
             name: "run_bash_command",
             description: "Execute a Linux shell command on the local system. ",
             parameters: {
