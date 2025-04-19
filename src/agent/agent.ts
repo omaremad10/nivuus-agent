@@ -340,6 +340,8 @@ export async function main() {
                 let choices: string[] = [];
                 // Nouvelle logique : détecter uniquement la dernière séquence de lignes numérotées consécutives
                 if (lastAssistant && lastAssistant.role === 'assistant' && typeof lastAssistant.content === 'string') {
+                    // Affiche le dernier message assistant en cyan avant l'input utilisateur
+                    console.log(chalk.cyan('\n' + lastAssistant.content));
                     const lines = lastAssistant.content.split('\n').map(line => line && typeof line === 'string' ? line.trim() : '').filter(line => !!line);
                     let currentChoices: string[] = [];
                     let bestChoices: string[] = [];
@@ -619,14 +621,6 @@ export async function main() {
                     // Après avoir ajouté les tool results, relancer automatiquement l'appel API
                     needsApiCall = true;
                     continue;
-                } else {
-                    // --- Handle Regular Text Response ---
-                    updateMemory(agentMemory, 'API Response', MODEL_NAME, 'Success');
-                    console.log(chalk.bold(t('assistantResponseHeader')));
-                    console.log(responseMessage.content);
-                    if (responseMessage.content) {
-                        parseAndUpdateSystemInfo(responseMessage.content, agentMemory, chalk);
-                    }
                 }
 
             } // End while(needsApiCall)

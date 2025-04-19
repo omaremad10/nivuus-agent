@@ -195,7 +195,7 @@ export async function getUserConfirmation(question: string): Promise<boolean> {
 export async function selectFromChoices(question: string, choices: string[], otherLabel = t('otherLabel')): Promise<string> {
     const otherNum = choices.length + 1;
     const choicesWithOtherStrings = [...choices, otherLabel].map((choice, idx) => `${idx + 1}`);
-    console.log(chalk.white(`${otherNum}. ${otherLabel}`));
+    console.log(chalk.cyan(`${otherNum}. ${otherLabel}`));
     const response = await getUserKey(chalk.green(`${question} (1-${otherNum}): `), choicesWithOtherStrings);
     const num = parseInt(response, 10);
     if (!isNaN(num) && num >= 1 && num <= choices.length) {
