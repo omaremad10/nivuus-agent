@@ -22,9 +22,8 @@ import {
     MEMORY_FILE,
     default_system_prompt_template,
     MAX_FEEDBACK_LEN
-} from './config.js';
+} from '../config/config.js';
 import {
-    tools as toolDefinitions, // Contient maintenant askUserTool
     runCommand,
     readFileContent,
     performWebSearch,
@@ -32,8 +31,12 @@ import {
     writeFileWithConfirmation,
     askUser, // <-- Importer la nouvelle fonction
     setAgentMemoryRef as setToolsMemoryRef,
-    setScriptFilenameRef as setToolsScriptRef
-} from './tools.js';
+    setScriptFilenameRef as setToolsScriptRef,
+    tools,
+    get_memory_keys,
+    get_memory_value,
+    set_memory_value
+} from '../tools.js';
 import {
     loadData,
     saveData,
@@ -41,37 +44,9 @@ import {
     getUserInput,
     t, // Import the translation function
     closeActiveReadlineInterface // <-- Import the new function
-} from './utils.js';
-
-// --- Interfaces ---
-// Define ActionStatus type to be used across modules
-export type ActionStatus = 'Attempted' | 'Success' | 'Failure' | 'Cancelled' | 'Success (No Results)';
-
-// Export this interface
-export interface ChatMessage {
-    role: 'system' | 'user' | 'assistant' | 'tool';
-    content: string | null; // Keep allowing null for internal history representation
-    name?: string; // Add name for tool role messages
-    tool_calls?: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[];
-    tool_call_id?: string;
-}
-
-// Export this interface
-export interface ActionLogEntry {
-    timestamp: string;
-    actionType: string;
-    target: string;
-    status: ActionStatus; // Use the defined type
-    errorMsg?: string | null;
-    // Add other potential properties if needed
-}
-
-// Export this interface
-export interface AgentMemory {
-    system_info: any; // Define more specifically if possible
-    action_log: ActionLogEntry[];
-    notes: string;
-}
+} from '../utils.js';
+import { parseAndUpdateSystemInfo } from './helpers.js';
+import type { ActionStatus, ChatMessage, ActionLogEntry, AgentMemory } from './types.js';
 
 // --- Determine API Key to Use ---
 let apiKeyToUse: string | undefined;
@@ -111,6 +86,9 @@ const availableFunctions: { [key: string]: Function } = {
     "list_directory": listDirectory, // Added listDirectory
     "write_file": writeFileWithConfirmation, // <-- Add the mapping
     "ask_user": askUser, // <-- Ajouter le mapping
+    "get_memory_keys": get_memory_keys,
+    "get_memory_value": get_memory_value,
+    "set_memory_value": set_memory_value,
 };
 
 // --- Main Async Function ---
@@ -215,11 +193,6 @@ export async function main() {
     // Reload agentMemory from file, then reinject the reference
     agentMemory = await loadData<AgentMemory>(MEMORY_FILE, { system_info: {}, action_log: [], notes: "" });
     setToolsMemoryRef(agentMemory); // Reinject reference after loading
-
-    // DEBUG: Log loaded history around index 58
-    console.log("\n--- Loaded History (Initial, around index 58) ---");
-    console.log(JSON.stringify(conversationHistory.slice(55, 65), null, 2)); // Log messages around the problematic index
-    console.log("-------------------------------------------------");
 
     // --- Clean up potentially incomplete tool call from last run ---
     if (conversationHistory.length > 0) {
@@ -414,15 +387,10 @@ export async function main() {
                         })
                         .filter((msg): msg is ChatCompletionMessageParam => msg !== null);
 
-                    // DEBUG: Log the exact messages being sent if needed (can be very verbose)
-                    // console.log("\n--- EXACT Messages to First API Call ---");
-                    // console.log(JSON.stringify(messagesToSend, null, 2));
-                    // console.log("----------------------------------------\n");
-
                     response = await openai.chat.completions.create({
                         model: MODEL_NAME,
                         messages: apiMessages, // Use the correctly filtered/mapped messages
-                        tools: toolDefinitions as ChatCompletionTool[],
+                        tools: tools as ChatCompletionTool[],
                         tool_choice: "auto",
                     });
 
@@ -444,11 +412,6 @@ export async function main() {
                     } else {
                         console.error(chalk.red(`\nError calling API: ${String(apiError)}`));
                     }
-
-                    // DEBUG: Log history *at the point of failure* during the FIRST call
-                    console.log("\n--- History at First API Call Failure (around index 58) ---");
-                    console.log(JSON.stringify(conversationHistory.slice(55, 65), null, 2)); // Log original history around index 58
-                    console.log("---------------------------------------------------------");
 
                     throw apiError; // Rethrow the error for main loop handler
                 }
@@ -473,6 +436,8 @@ export async function main() {
 
                     const toolResults: ChatMessage[] = []; // Store results to push later
                     let askUserCalled = false; // Flag pour savoir si ask_user a été appelé
+                    // Correction : pas de variable globale, on détecte si un tool_call nécessite confirmation
+                    let confirmationPending = false;
 
                     for (const toolCall of toolCalls) {
                         const functionName = toolCall.function.name;
@@ -505,18 +470,17 @@ export async function main() {
                                         functionResponse = await functionToCall(functionArgs.question);
                                         askUserCalled = true;
                                     } else { throw new Error(`Missing 'question' argument for ask_user`); }
-                                } else if (functionName === 'run_bash_command') {
-                                    if (functionArgs.command && functionArgs.purpose) {
+                                } else if (functionName === 'run_bash_command' || functionName === 'write_file') {
+                                    // On exécute la commande et on considère qu'une confirmation a eu lieu
+                                    confirmationPending = true;
+                                    if (functionName === 'run_bash_command' && functionArgs.command && functionArgs.purpose) {
                                         functionResponse = await functionToCall(functionArgs.command, functionArgs.purpose);
-                                    } else {
-                                        throw new Error(`Missing 'command' or 'purpose' argument for run_bash_command`);
-                                    }
-                                } else if (functionName === 'write_file') {
-                                     if (functionArgs.filepath && functionArgs.content) {
+                                    } else if (functionName === 'write_file' && functionArgs.filepath && functionArgs.content) {
                                         functionResponse = await functionToCall(functionArgs.filepath, functionArgs.content);
                                     } else {
-                                        throw new Error(`Missing 'filepath' or 'content' argument for write_file`);
+                                        throw new Error(`Arguments manquants pour ${functionName}`);
                                     }
+                                    confirmationPending = false;
                                 } else {
                                     // Handle single-argument functions (read_file, web_search, list_directory)
                                     const argKeys = Object.keys(functionArgs);
@@ -581,112 +545,95 @@ export async function main() {
                     // Add all tool results to history
                     toolResults.forEach(toolMessage => conversationHistory.push(toolMessage));
 
-                    // --- Second API Call with Tool Results (will now always run if toolCalls existed) ---
-                    const spinner2 = ora(t('sendingToolResults')).start(); // Use t()
+                    // Correction : le spinner ne s'affiche que si AUCUN tool_call du lot n'était de type run_bash_command ou write_file
+                    const hasConfirmationTool = toolCalls.some(tc => ['run_bash_command', 'write_file'].includes(tc.function.name));
+                    if (!hasConfirmationTool) {
+                        const spinner2 = ora(t('sendingToolResults')).start();
+                        // ...existing code pour l'appel API...
+                        // Avant l'appel à openai.chat.completions.create avec apiMessagesWithToolResults
+                        // Générer apiMessagesWithToolResults à partir de conversationHistory
+                        const apiMessagesWithToolResults = conversationHistory
+                            .map((msg): ChatCompletionMessageParam | null => {
+                                if (!msg.role) return null;
+                                if (msg.role === 'assistant' && msg.tool_calls && msg.tool_calls.length > 0) {
+                                    return {
+                                        role: 'assistant',
+                                        content: msg.content ?? null,
+                                        tool_calls: msg.tool_calls,
+                                    };
+                                } else if (msg.role === 'tool' && msg.tool_call_id) {
+                                    const contentString = (msg.content === null || msg.content === undefined) ? 'null' : String(msg.content);
+                                    return {
+                                        role: 'tool',
+                                        content: contentString,
+                                        tool_call_id: msg.tool_call_id,
+                                        ...(msg.name && { name: msg.name }),
+                                    };
+                                } else if (msg.role === 'system' && msg.content !== null && msg.content !== undefined) {
+                                    return {
+                                        role: 'system',
+                                        content: String(msg.content),
+                                    };
+                                } else if (msg.role === 'user' && msg.content !== null && msg.content !== undefined) {
+                                    return {
+                                        role: 'user',
+                                        content: String(msg.content),
+                                    };
+                                } else if (msg.role === 'assistant' && msg.content !== null && msg.content !== undefined) {
+                                    return {
+                                        role: 'assistant',
+                                        content: String(msg.content),
+                                    };
+                                }
+                                return null;
+                            })
+                            .filter((msg): msg is ChatCompletionMessageParam => msg !== null);
+                        try {
+                            const secondResponse = await openai.chat.completions.create({
+                                model: MODEL_NAME,
+                                messages: apiMessagesWithToolResults, // Use the correctly filtered/mapped messages
+                                tools: tools as ChatCompletionTool[],
+                                tool_choice: "auto",
+                                // No tools needed here usually
+                            });
+                            spinner2.succeed(t('receivedFinalResponse')); // Use t()
 
-                    // Prepare messages again for the second call, using the same robust logic
-                    const apiMessagesWithToolResults = conversationHistory
-                        .map((msg): ChatCompletionMessageParam | null => {
-                            if (!msg.role) return null;
+                            // Use optional chaining
+                            const finalMessage = secondResponse.choices[0]?.message;
 
-                            // Assistant message requesting tool calls
-                            if (msg.role === 'assistant' && msg.tool_calls && msg.tool_calls.length > 0) {
-                                return {
-                                    role: 'assistant', // Explicitly 'assistant'
-                                    content: msg.content ?? null,
-                                    tool_calls: msg.tool_calls,
-                                };
+                            if (finalMessage) {
+                                conversationHistory.push(finalMessage as ChatMessage); // Add final response
+                                console.log(chalk.bold(t('assistantResponseHeader'))); // Use t()
+                                console.log(finalMessage.content);
+                                updateMemory(agentMemory, 'API Response', MODEL_NAME, 'Success');
+
+                                // --- Parse and update system_info from response ---
+                                if (finalMessage.content) {
+                                    parseAndUpdateSystemInfo(finalMessage.content, agentMemory, chalk);
+                                }
+                                // --- End Parse and update ---
+
+                            } else {
+                                console.error(chalk.red(t('errorNoFinalResponse')));
+                                updateMemory(agentMemory, 'API Call (Post-Tool)', MODEL_NAME, 'Failure', 'No final response message');
                             }
-                            // Tool message with result
-                            else if (msg.role === 'tool' && msg.tool_call_id) {
-                                const contentString = (msg.content === null || msg.content === undefined) ? 'null' : String(msg.content);
-                                return {
-                                    role: 'tool', // Explicitly 'tool'
-                                    content: contentString,
-                                    tool_call_id: msg.tool_call_id,
-                                    ...(msg.name && { name: msg.name }),
-                                };
+                        } catch (error) { // Catch errors specifically from the second API call
+                            spinner2.fail(chalk.red(t('apiError'))); // Use t()
+                            // Use type guard for OpenAI API errors
+                            if (error instanceof OpenAI.APIError) {
+                                console.error(chalk.red(`\nOpenAI API Error (${error.status || 'N/A'}): ${error.message}`));
+                                // Use error.error for detailed error info in SDK v4+
+                                console.error(chalk.dim(JSON.stringify(error.error, null, 2)));
+                            } else if (error instanceof Error) { // Check if it's a generic Error
+                                console.error(chalk.red(`\nError calling API: ${error.message}`));
+                            } else {
+                                console.error(chalk.red(`\nError calling API: ${String(error)}`));
                             }
-                            // System message
-                            else if (msg.role === 'system' && msg.content !== null && msg.content !== undefined) {
-                                return {
-                                    role: 'system', // Explicitly 'system'
-                                    content: String(msg.content),
-                                };
-                            }
-                            // User message
-                            else if (msg.role === 'user' && msg.content !== null && msg.content !== undefined) {
-                                return {
-                                    role: 'user', // Explicitly 'user'
-                                    content: String(msg.content),
-                                };
-                            }
-                            // Regular assistant message (no tool calls)
-                            else if (msg.role === 'assistant' && msg.content !== null && msg.content !== undefined) {
-                                return {
-                                    role: 'assistant', // Explicitly 'assistant'
-                                    content: String(msg.content),
-                                };
-                            }
-                            // Filter out any other invalid message structures
-                            return null;
-                        })
-                        .filter((msg): msg is ChatCompletionMessageParam => msg !== null);
 
-                    // DEBUG: Log messages being sent (Remove in production)
-                    console.log("\n--- Sending Tool Results to API ---");
-                    console.log(JSON.stringify(apiMessagesWithToolResults, null, 2)); // <-- Added log
-                    console.log("----------------------------------\n");
-
-                    try {
-                        const secondResponse = await openai.chat.completions.create({
-                            model: MODEL_NAME,
-                            messages: apiMessagesWithToolResults, // Use the correctly filtered/mapped messages
-                            // No tools needed here usually
-                        });
-                        spinner2.succeed(t('receivedFinalResponse')); // Use t()
-
-                        // Use optional chaining
-                        const finalMessage = secondResponse.choices[0]?.message;
-
-                        if (finalMessage) {
-                            conversationHistory.push(finalMessage as ChatMessage); // Add final response
-                            console.log(chalk.bold(t('assistantResponseHeader'))); // Use t()
-                            console.log(finalMessage.content);
-                            updateMemory(agentMemory, 'API Response', MODEL_NAME, 'Success');
-
-                            // --- Parse and update system_info from response ---
-                            if (finalMessage.content) {
-                                parseAndUpdateSystemInfo(finalMessage.content);
-                            }
-                            // --- End Parse and update ---
-
-                        } else {
-                            console.error(chalk.red(t('errorNoFinalResponse')));
-                            updateMemory(agentMemory, 'API Call (Post-Tool)', MODEL_NAME, 'Failure', 'No final response message');
+                            // Rethrow the error to be caught by the main loop's handler for retry logic
+                            throw error; // <-- Ensure error is re-thrown
                         }
-                    } catch (error) { // Catch errors specifically from the second API call
-                        spinner2.fail(chalk.red(t('apiError'))); // Use t()
-                        // Use type guard for OpenAI API errors
-                        if (error instanceof OpenAI.APIError) {
-                            console.error(chalk.red(`\nOpenAI API Error (${error.status || 'N/A'}): ${error.message}`));
-                            // Use error.error for detailed error info in SDK v4+
-                            console.error(chalk.dim(JSON.stringify(error.error, null, 2)));
-                        } else if (error instanceof Error) { // Check if it's a generic Error
-                            console.error(chalk.red(`\nError calling API: ${error.message}`));
-                        } else {
-                            console.error(chalk.red(`\nError calling API: ${String(error)}`));
-                        }
-
-                        // DEBUG: Log history *at the point of failure*
-                        console.log("\n--- History at Second API Call Failure ---"); // <-- Added log
-                        console.log(JSON.stringify(conversationHistory, null, 2)); // <-- Added log
-                        console.log("----------------------------------------\n"); // <-- Added log
-
-                        // Rethrow the error to be caught by the main loop's handler for retry logic
-                        throw error; // <-- Ensure error is re-thrown
                     }
-
                 } else {
                     // --- Handle Regular Text Response ---
                     updateMemory(agentMemory, 'API Response', MODEL_NAME, 'Success');
@@ -695,7 +642,7 @@ export async function main() {
 
                     // --- Parse and update system_info from response ---
                     if (responseMessage.content) {
-                        parseAndUpdateSystemInfo(responseMessage.content);
+                        parseAndUpdateSystemInfo(responseMessage.content, agentMemory, chalk);
                     }
                     // --- End Parse and update ---
                 }
@@ -805,37 +752,6 @@ export async function main() {
         }
         console.log(chalk.blue(t('agentFinished'))); // Use t()
     }
-}
-
-// --- Helper Function to Parse System Info ---
-function parseAndUpdateSystemInfo(content: string): void {
-    const lines = content.split('\n');
-    const systemInfoRegex = /^\s*([\w_.-]+)\s*:\s*(.+)$/;
-    let updated = false;
-
-    lines.forEach(line => {
-        const match = line.match(systemInfoRegex);
-        // Ensure match and its captured groups are not null/undefined before accessing
-        if (match && match[1] !== undefined && match[2] !== undefined) {
-            const key = match[1].trim();
-            const value = match[2].trim();
-            // Only update if the value is different or the key is new
-            // Ensure system_info exists before accessing/assigning
-            if (!agentMemory.system_info) {
-                agentMemory.system_info = {};
-            }
-            if (agentMemory.system_info[key] !== value) {
-                agentMemory.system_info[key] = value;
-                updated = true;
-                console.log(chalk.dim(`[Memory Update] system_info.${key} = "${value}"`));
-            }
-        }
-    });
-
-    // Optionally, save memory immediately after update, though saving on exit/SIGINT might be sufficient
-    // if (updated) {
-    //     saveData(MEMORY_FILE, agentMemory).catch(err => console.error("Error saving memory after system_info update:", err));
-    // }
 }
 
 // No direct launch here, execution is done from index.js

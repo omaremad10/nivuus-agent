@@ -5,7 +5,7 @@ import 'dotenv/config'; // Load .env file
 // This is the main entry point for the agent.
 // It imports and runs the main logic from src/agent.
 
-import { main } from './src/agent'; // Remove .js extension
+import { main } from './src/agent/agent.js';
 import chalk from 'chalk';
 
 // Immediately-invoked async function expression (IIAFE) to use await
