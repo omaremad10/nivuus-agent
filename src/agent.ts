@@ -216,6 +216,23 @@ export async function main() {
     agentMemory = await loadData<AgentMemory>(MEMORY_FILE, { system_info: {}, action_log: [], notes: "" });
     setToolsMemoryRef(agentMemory); // Reinject reference after loading
 
+    // DEBUG: Log loaded history around index 58
+    console.log("\n--- Loaded History (Initial, around index 58) ---");
+    console.log(JSON.stringify(conversationHistory.slice(55, 65), null, 2)); // Log messages around the problematic index
+    console.log("-------------------------------------------------");
+
+    // --- Clean up potentially incomplete tool call from last run ---
+    if (conversationHistory.length > 0) {
+        const lastMessage = conversationHistory[conversationHistory.length - 1];
+        // Check if the last message is from the assistant and has pending tool calls
+        if (lastMessage && lastMessage.role === 'assistant' && lastMessage.tool_calls && lastMessage.tool_calls.length > 0) {
+            console.log(chalk.yellow(t('removedLastToolCallRequest'))); // Use t() for the message
+            conversationHistory.pop(); // Remove the last message
+        }
+    }
+    // --- End cleanup ---
+
+
     // Ensure the system prompt is always the first message and up-to-date
     // Use optional chaining for safety
     if (conversationHistory.length === 0 || conversationHistory[0]?.role !== "system" || conversationHistory[0]?.content !== final_system_prompt) {
@@ -306,8 +323,8 @@ export async function main() {
                 needsApiCall = false; // Assume only one call is needed
 
                 // Prepare messages for the API (with memory summary)
-                const apiMessages = [...conversationHistory];
-                // Add memory summary as a contextual user message after the system prompt
+                const apiMessagesForCall = [...conversationHistory]; // Use a copy for the call
+                // Add memory summary if applicable
                 if (agentMemory && (Object.keys(agentMemory.system_info || {}).length > 0 || (agentMemory.action_log || []).length > 0 || agentMemory.notes)) {
                     let memorySummary = chalk.bold(t('memorySummaryTitle') + "\n"); // Use t()
                      if (agentMemory.system_info && Object.keys(agentMemory.system_info).length > 0) memorySummary += chalk.cyan(t('memorySysInfo')) + ` ${JSON.stringify(agentMemory.system_info)}\n`; // Use t()
@@ -341,42 +358,66 @@ export async function main() {
                     const cleanSummary = memorySummary.replace(
                          /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, ''
                      );
-                    // Insert the summary after the initial system message
-                    apiMessages.splice(1, 0, { role: "user", content: `${t('memoryReminder')}\n${cleanSummary}` }); // Use t()
+                    apiMessagesForCall.splice(1, 0, { role: "user", content: `${t('memoryReminder')}\n${cleanSummary}` });
                 }
-
 
                 // OpenAI API Call
                 const spinner = ora({ text: chalk.dim(t('callingApi')), spinner: 'dots' }).start(); // Use t()
                 let response;
                 try {
-                    // Prepare messages for the API call, handling potential null content
-                    const apiMessages = conversationHistory
-                        .map(msg => {
+                    // Prepare messages for the API call, ensuring valid structure
+                    const apiMessages = apiMessagesForCall
+                        .map((msg): ChatCompletionMessageParam | null => {
                             if (!msg.role) return null;
-                            if (msg.role === 'assistant' && msg.tool_calls && msg.tool_calls.length > 0 && msg.content === null) {
+
+                            // Assistant message requesting tool calls
+                            if (msg.role === 'assistant' && msg.tool_calls && msg.tool_calls.length > 0) {
                                 return {
-                                    role: msg.role,
-                                    content: null,
+                                    role: 'assistant', // Explicitly 'assistant'
+                                    content: msg.content ?? null,
                                     tool_calls: msg.tool_calls,
                                 };
-                            } else if (msg.role === 'tool' && msg.tool_call_id && msg.content !== null) {
+                            }
+                            // Tool message with result
+                            else if (msg.role === 'tool' && msg.tool_call_id) {
+                                const contentString = (msg.content === null || msg.content === undefined) ? 'null' : String(msg.content);
                                 return {
-                                    role: msg.role,
-                                    content: msg.content as string,
+                                    role: 'tool', // Explicitly 'tool'
+                                    content: contentString,
                                     tool_call_id: msg.tool_call_id,
                                     ...(msg.name && { name: msg.name }),
                                 };
-                            } else if (msg.content !== null) {
+                            }
+                            // System message
+                            else if (msg.role === 'system' && msg.content !== null && msg.content !== undefined) {
                                 return {
-                                    role: msg.role,
-                                    content: msg.content as string,
-                                    ...(msg.name && { name: msg.name }),
+                                    role: 'system', // Explicitly 'system'
+                                    content: String(msg.content),
                                 };
                             }
+                            // User message
+                            else if (msg.role === 'user' && msg.content !== null && msg.content !== undefined) {
+                                return {
+                                    role: 'user', // Explicitly 'user'
+                                    content: String(msg.content),
+                                };
+                            }
+                            // Regular assistant message (no tool calls)
+                            else if (msg.role === 'assistant' && msg.content !== null && msg.content !== undefined) {
+                                return {
+                                    role: 'assistant', // Explicitly 'assistant'
+                                    content: String(msg.content),
+                                };
+                            }
+                            // Filter out any other invalid message structures
                             return null;
                         })
-                        .filter(msg => msg !== null) as ChatCompletionMessageParam[];
+                        .filter((msg): msg is ChatCompletionMessageParam => msg !== null);
+
+                    // DEBUG: Log the exact messages being sent if needed (can be very verbose)
+                    // console.log("\n--- EXACT Messages to First API Call ---");
+                    // console.log(JSON.stringify(messagesToSend, null, 2));
+                    // console.log("----------------------------------------\n");
 
                     response = await openai.chat.completions.create({
                         model: MODEL_NAME,
@@ -403,7 +444,13 @@ export async function main() {
                     } else {
                         console.error(chalk.red(`\nError calling API: ${String(apiError)}`));
                     }
-                    throw apiError; // Rethrow the error for global handling
+
+                    // DEBUG: Log history *at the point of failure* during the FIRST call
+                    console.log("\n--- History at First API Call Failure (around index 58) ---");
+                    console.log(JSON.stringify(conversationHistory.slice(55, 65), null, 2)); // Log original history around index 58
+                    console.log("---------------------------------------------------------");
+
+                    throw apiError; // Rethrow the error for main loop handler
                 }
 
                 // Use optional chaining for safe access
@@ -539,31 +586,57 @@ export async function main() {
 
                     // Prepare messages again for the second call, using the same robust logic
                     const apiMessagesWithToolResults = conversationHistory
-                        .map(msg => {
+                        .map((msg): ChatCompletionMessageParam | null => {
                             if (!msg.role) return null;
-                            if (msg.role === 'assistant' && msg.tool_calls && msg.tool_calls.length > 0 && msg.content === null) {
+
+                            // Assistant message requesting tool calls
+                            if (msg.role === 'assistant' && msg.tool_calls && msg.tool_calls.length > 0) {
                                 return {
-                                    role: msg.role,
-                                    content: null,
+                                    role: 'assistant', // Explicitly 'assistant'
+                                    content: msg.content ?? null,
                                     tool_calls: msg.tool_calls,
                                 };
-                            } else if (msg.role === 'tool' && msg.tool_call_id && msg.content !== null) {
+                            }
+                            // Tool message with result
+                            else if (msg.role === 'tool' && msg.tool_call_id) {
+                                const contentString = (msg.content === null || msg.content === undefined) ? 'null' : String(msg.content);
                                 return {
-                                    role: msg.role,
-                                    content: msg.content as string,
+                                    role: 'tool', // Explicitly 'tool'
+                                    content: contentString,
                                     tool_call_id: msg.tool_call_id,
                                     ...(msg.name && { name: msg.name }),
                                 };
-                            } else if (msg.content !== null) {
+                            }
+                            // System message
+                            else if (msg.role === 'system' && msg.content !== null && msg.content !== undefined) {
                                 return {
-                                    role: msg.role,
-                                    content: msg.content as string,
-                                    ...(msg.name && { name: msg.name }),
+                                    role: 'system', // Explicitly 'system'
+                                    content: String(msg.content),
                                 };
                             }
+                            // User message
+                            else if (msg.role === 'user' && msg.content !== null && msg.content !== undefined) {
+                                return {
+                                    role: 'user', // Explicitly 'user'
+                                    content: String(msg.content),
+                                };
+                            }
+                            // Regular assistant message (no tool calls)
+                            else if (msg.role === 'assistant' && msg.content !== null && msg.content !== undefined) {
+                                return {
+                                    role: 'assistant', // Explicitly 'assistant'
+                                    content: String(msg.content),
+                                };
+                            }
+                            // Filter out any other invalid message structures
                             return null;
                         })
-                        .filter(msg => msg !== null) as ChatCompletionMessageParam[];
+                        .filter((msg): msg is ChatCompletionMessageParam => msg !== null);
+
+                    // DEBUG: Log messages being sent (Remove in production)
+                    console.log("\n--- Sending Tool Results to API ---");
+                    console.log(JSON.stringify(apiMessagesWithToolResults, null, 2)); // <-- Added log
+                    console.log("----------------------------------\n");
 
                     try {
                         const secondResponse = await openai.chat.completions.create({
@@ -592,8 +665,26 @@ export async function main() {
                             console.error(chalk.red(t('errorNoFinalResponse')));
                             updateMemory(agentMemory, 'API Call (Post-Tool)', MODEL_NAME, 'Failure', 'No final response message');
                         }
-                    } catch (error) {
-                        // ... existing catch block ...
+                    } catch (error) { // Catch errors specifically from the second API call
+                        spinner2.fail(chalk.red(t('apiError'))); // Use t()
+                        // Use type guard for OpenAI API errors
+                        if (error instanceof OpenAI.APIError) {
+                            console.error(chalk.red(`\nOpenAI API Error (${error.status || 'N/A'}): ${error.message}`));
+                            // Use error.error for detailed error info in SDK v4+
+                            console.error(chalk.dim(JSON.stringify(error.error, null, 2)));
+                        } else if (error instanceof Error) { // Check if it's a generic Error
+                            console.error(chalk.red(`\nError calling API: ${error.message}`));
+                        } else {
+                            console.error(chalk.red(`\nError calling API: ${String(error)}`));
+                        }
+
+                        // DEBUG: Log history *at the point of failure*
+                        console.log("\n--- History at Second API Call Failure ---"); // <-- Added log
+                        console.log(JSON.stringify(conversationHistory, null, 2)); // <-- Added log
+                        console.log("----------------------------------------\n"); // <-- Added log
+
+                        // Rethrow the error to be caught by the main loop's handler for retry logic
+                        throw error; // <-- Ensure error is re-thrown
                     }
 
                 } else {

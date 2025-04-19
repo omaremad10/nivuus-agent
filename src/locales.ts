@@ -10,9 +10,8 @@ export const strings = {
     finalSaveCompleted: "💾 Final save completed.",
     finalSaveError: "❌ Error during final save:",
     agentFinished: "Agent finished.",
-    errorGettingInput: "Error getting user input:",
-    invalidInputDefault: "Invalid or no user input received. Using default instruction.",
-    usingDefaultInstruction: "Agent: Using default instruction: '{instruction}'",
+    // Added for agent.ts cleanup logic
+    removedLastToolCallRequest: "Removed last assistant message requesting tool calls from history.",
     aiRequestsTool: "🤖 AI requests tool execution...",
     unknownFunctionRequested: "Error: Unknown function requested by AI: {functionName}",
     errorFunctionNotImplemented: "Error: Function '{functionName}' not implemented locally.",
@@ -175,9 +174,8 @@ export const strings = {
     finalSaveCompleted: "💾 Sauvegarde finale terminée.",
     finalSaveError: "❌ Erreur lors de la sauvegarde finale :",
     agentFinished: "Agent terminé.",
-    errorGettingInput: "Erreur lors de la récupération de l'entrée utilisateur :",
-    invalidInputDefault: "Entrée utilisateur invalide ou absente. Utilisation de l'instruction par défaut.",
-    usingDefaultInstruction: "Agent : Utilisation de l'instruction par défaut : '{instruction}'",
+    // Added for agent.ts cleanup logic
+    removedLastToolCallRequest: "Suppression du dernier message de l'assistant demandant des appels d'outils de l'historique.",
     aiRequestsTool: "🤖 L'IA demande l'exécution d'un outil...",
     unknownFunctionRequested: "Erreur : Fonction inconnue demandée par l'IA : {functionName}",
     errorFunctionNotImplemented: "Erreur : La fonction '{functionName}' n'est pas implémentée localement.",
