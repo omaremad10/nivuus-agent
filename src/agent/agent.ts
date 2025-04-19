@@ -199,6 +199,9 @@ export async function main() {
     setToolsMemoryRef(agentMemory); // Reinject reference after loading
     setMemoryToolsRef(agentMemory); // Injection mémoire pour memoryTools
 
+    // Juste avant la boucle principale, on vide l'historique des commandes :
+    agentMemory.action_log = [];
+
     // --- Clean up potentially incomplete tool call from last run ---
     if (conversationHistory.length > 0) {
         const lastMessage = conversationHistory[conversationHistory.length - 1];
@@ -557,10 +560,12 @@ export async function main() {
                                     }
                                     confirmationPending = false;
                                 } else if (functionName === 'get_memory_keys') {
-                                    // Always call with an object, even if path is undefined
                                     functionResponse = await functionToCall(functionArgs.path);
+                                } else if (functionName === 'set_memory_value') {
+                                    // Correction : passer path et value séparément
+                                    functionResponse = await functionToCall(functionArgs.path, functionArgs.value);
                                 } else {
-                                    // Handle single-argument functions (read_file, web_search, list_directory, get_memory_value, set_memory_value)
+                                    // Handle single-argument functions (read_file, web_search, list_directory, get_memory_value)
                                     const argKeys = Object.keys(functionArgs);
                                     if (argKeys.length > 0) {
                                         const primaryArgKey = argKeys[0];

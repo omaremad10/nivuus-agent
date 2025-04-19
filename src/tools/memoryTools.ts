@@ -10,6 +10,9 @@ export function setAgentMemoryRef(memory: AgentMemory) {
 }
 
 export async function get_memory_keys(path?: string): Promise<string[]> {
+    if (!path) path = '';
+    if (path === '/') path = '';
+    if (path === 'root') path = '';
     console.log(chalk.yellow(t('memoryGettingKeys', { path: path || 'root' })));
     if (!agentMemoryRef) throw new Error(t('errorMemoryNotInitialized'));
     try {
