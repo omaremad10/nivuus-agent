@@ -29,7 +29,6 @@ import {
     performWebSearch,
     listDirectory,
     writeFileWithConfirmation,
-    askUser, // <-- Importer la nouvelle fonction
     setAgentMemoryRef as setToolsMemoryRef,
     setScriptFilenameRef as setToolsScriptRef,
     tools,
@@ -42,8 +41,10 @@ import {
     saveData,
     updateMemory,
     getUserInput,
+    selectFromChoices,
     t, // Import the translation function
-    closeActiveReadlineInterface // <-- Import the new function
+    closeActiveReadlineInterface, // <-- Import the new function
+    currentLocale
 } from '../utils.js';
 import { parseAndUpdateSystemInfo } from './helpers.js';
 import type { ActionStatus, ChatMessage, ActionLogEntry, AgentMemory } from './types.js';
@@ -186,7 +187,9 @@ export async function main() {
     }
 
     // Build the final system prompt using the template and current script name
-    const final_system_prompt = default_system_prompt_template.replace('{SCRIPT_FILENAME}', SCRIPT_FILENAME);
+    const final_system_prompt = default_system_prompt_template
+        .replace('{SCRIPT_FILENAME}', SCRIPT_FILENAME)
+        .replace('{LOCALE}', currentLocale);
 
     // Initial data loading (paths relative to CWD where index.js is run)
     // Provide explicit types for loadData calls
@@ -330,7 +333,37 @@ export async function main() {
 
 
             if (needUserInput) {
-                let userMessageContent = await getUserInput(chalk.yellowBright(t('userPrompt')));
+                // Détection d'une liste de choix à proposer à l'utilisateur
+                let userMessageContent: string;
+                const lastAssistant = conversationHistory.length > 0 ? conversationHistory[conversationHistory.length - 1] : null;
+                // Convention : si le dernier message assistant contient une liste de choix dans le texte (ex: "1. ...\n2. ...\n3. ...")
+                let choices: string[] = [];
+                // Nouvelle logique : détecter uniquement la dernière séquence de lignes numérotées consécutives
+                if (lastAssistant && lastAssistant.role === 'assistant' && typeof lastAssistant.content === 'string') {
+                    const lines = lastAssistant.content.split('\n').map(line => line && typeof line === 'string' ? line.trim() : '').filter(line => !!line);
+                    let currentChoices: string[] = [];
+                    let bestChoices: string[] = [];
+                    for (let i = 0; i < lines.length; i++) {
+                        const line = lines[i];
+                        if (typeof line === 'string' && /^\d+\./.test(line)) {
+                            currentChoices.push(line.replace(/^\d+\.\s*/, ''));
+                        } else {
+                            if (currentChoices.length > 0) {
+                                bestChoices = currentChoices;
+                                currentChoices = [];
+                            }
+                        }
+                    }
+                    if (currentChoices.length > 0) {
+                        bestChoices = currentChoices;
+                    }
+                    choices = bestChoices;
+                }
+                if (choices.length >= 2) {
+                    userMessageContent = await selectFromChoices(chalk.yellowBright(t('userPrompt')), choices);
+                } else {
+                    userMessageContent = await getUserInput(chalk.yellowBright(t('userPrompt')));
+                }
                 if (!userMessageContent || userMessageContent.trim() === "") {
                     userMessageContent = defaultInstruction; // Use default instruction if empty
                 }
@@ -482,7 +515,6 @@ export async function main() {
                     console.log(chalk.blue(t('toolCallInitiated')));
 
                     const toolResults: ChatMessage[] = []; // Store results to push later
-                    let askUserCalled = false; // Flag pour savoir si ask_user a été appelé
                     // Correction : pas de variable globale, on détecte si un tool_call nécessite confirmation
                     let confirmationPending = false;
 
@@ -512,12 +544,7 @@ export async function main() {
                             try {
                                 let functionResponse;
                                 // --- Logique d'appel spécifique ---
-                                if (functionName === 'ask_user') {
-                                    if (functionArgs.question) {
-                                        functionResponse = await functionToCall(functionArgs.question);
-                                        askUserCalled = true;
-                                    } else { throw new Error(`Missing 'question' argument for ask_user`); }
-                                } else if (functionName === 'run_bash_command' || functionName === 'write_file') {
+                                if (functionName === 'run_bash_command' || functionName === 'write_file') {
                                     // On exécute la commande et on considère qu'une confirmation a eu lieu
                                     confirmationPending = true;
                                     if (functionName === 'run_bash_command' && functionArgs.command && functionArgs.purpose) {

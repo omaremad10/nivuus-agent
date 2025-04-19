@@ -150,7 +150,13 @@
   "assistantQuestionPrefix": "Question Assistant :",
   "promptUserResponse": "Votre réponse : ",
   "errorToolArgsParse": "Erreur d'analyse des arguments pour l'outil {functionName}. Args: {args}. Erreur: {message}",
-  "commandConfirmYes": "oui",
-  "commandConfirmNo": "non",
-  "userPrompt": "Entrez votre message :"
+  "commandConfirmYes": "o",
+  "commandConfirmNo": "n",
+  "userPrompt": "Entrez votre message :",
+  "inputEndInstruction": "(Terminez avec deux fois Entrée)",
+  "invalidInput": "Entrée invalide. Veuillez entrer une des valeurs suivantes : {answers}",
+  "invalidYesNoInput": "Entrée invalide. Veuillez entrer 'o' ou 'n'.",
+  "otherLabel": "Autre...",
+  "customResponsePrompt": "Votre réponse personnalisée : ",
+  "invalidNumberInput": "Veuillez entrer un numéro valide."
 }

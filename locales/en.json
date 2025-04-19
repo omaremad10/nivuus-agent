@@ -149,6 +149,12 @@
   "assistantQuestionPrefix": "Assistant Question:",
   "promptUserResponse": "Your response: ",
   "errorToolArgsParse": "Error parsing arguments for tool {functionName}. Args: {args}. Error: {message}",
-  "commandConfirmYes": "yes",
-  "commandConfirmNo": "no"
+  "commandConfirmYes": "y",
+  "commandConfirmNo": "n",
+  "inputEndInstruction": "(Finish with Enter twice)",
+  "invalidInput": "Invalid input. Please enter one of the following: {answers}",
+  "invalidYesNoInput": "Invalid input. Please enter 'y' or 'n'.",
+  "otherLabel": "Other...",
+  "customResponsePrompt": "Your custom response: ",
+  "invalidNumberInput": "Please enter a valid number."
 }

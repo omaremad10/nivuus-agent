@@ -170,4 +170,3 @@ export {
   set_memory_value,
   setAgentMemoryRef as setMemoryToolsMemoryRef
 } from './tools/memoryTools.js';
-export { askUser, setAgentMemoryRef as setAskUserMemoryRef } from './tools/askUser.js';

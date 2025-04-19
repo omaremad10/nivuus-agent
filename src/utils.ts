@@ -1,6 +1,6 @@
 import { strings } from './locales.js';
 import chalk from 'chalk';
-import { getUserInput, getUserConfirmation, closeActiveReadlineInterface } from './utils/userIO.js';
+import { getUserInput, getUserConfirmation, closeActiveReadlineInterface, selectFromChoices } from './utils/userIO.js';
 import { loadData, saveData } from './utils/persistence.js';
 import { updateMemory } from './utils/memoryHelpers.js';
 
@@ -31,6 +31,6 @@ export function t(key: string, params: Record<string, string | number | boolean>
     return str;
 }
 
-export { getUserInput, getUserConfirmation, closeActiveReadlineInterface };
+export { getUserInput, getUserConfirmation, closeActiveReadlineInterface, selectFromChoices };
 export { loadData, saveData };
 export { updateMemory };
