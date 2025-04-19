@@ -543,38 +543,35 @@ export async function main() {
                         if (functionToCall) {
                             try {
                                 let functionResponse;
-                                // --- Logique d'appel spécifique ---
+                                // --- Specific call logic ---
                                 if (functionName === 'run_bash_command' || functionName === 'write_file') {
-                                    // On exécute la commande et on considère qu'une confirmation a eu lieu
                                     confirmationPending = true;
                                     if (functionName === 'run_bash_command' && functionArgs.command && functionArgs.purpose) {
                                         functionResponse = await functionToCall(functionArgs.command, functionArgs.purpose);
                                     } else if (functionName === 'write_file' && functionArgs.filepath && functionArgs.content) {
                                         functionResponse = await functionToCall(functionArgs.filepath, functionArgs.content);
                                     } else {
-                                        throw new Error(`Arguments manquants pour ${functionName}`);
+                                        throw new Error(`Missing arguments for ${functionName}`);
                                     }
                                     confirmationPending = false;
+                                } else if (functionName === 'get_memory_keys') {
+                                    // Always call with an object, even if path is undefined
+                                    functionResponse = await functionToCall(functionArgs.path);
                                 } else {
-                                    // Handle single-argument functions (read_file, web_search, list_directory)
+                                    // Handle single-argument functions (read_file, web_search, list_directory, get_memory_value, set_memory_value)
                                     const argKeys = Object.keys(functionArgs);
                                     if (argKeys.length > 0) {
                                         const primaryArgKey = argKeys[0];
-                                        // Ensure primaryArgKey is not undefined before indexing
                                         if (primaryArgKey !== undefined) {
                                             functionResponse = await functionToCall(functionArgs[primaryArgKey]);
                                         } else {
-                                             // This case should theoretically not happen if argKeys.length > 0
-                                             throw new Error(`Could not determine primary argument key for ${functionName}`);
+                                            throw new Error(`Could not determine primary argument key for ${functionName}`);
                                         }
                                     } else {
-                                        // Handle case where no arguments were provided, though the schema requires them
-                                        // Check if the function *can* be called without args, otherwise throw
-                                        // Assuming all current single-arg functions require their argument:
                                         throw new Error(`Missing required argument for function ${functionName}`);
                                     }
                                 }
-                                // --- Fin logique d'appel ---
+                                // --- End specific call logic ---
 
                                 // Log tool success
                                 updateMemory(agentMemory, `Tool: ${functionName}`, JSON.stringify(functionArgs), 'Success');

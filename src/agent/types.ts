@@ -1,4 +1,4 @@
-// Types et interfaces extraits de agent.ts
+// Types and interfaces extracted from agent.ts
 export type ActionStatus = 'Attempted' | 'Success' | 'Failure' | 'Cancelled' | 'Success (No Results)';
 
 export interface ChatMessage {

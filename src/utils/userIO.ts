@@ -19,42 +19,42 @@ export function getUserInput(prompt: string): Promise<string> {
         let currentLine = 0;
         let cursor = 0;
         let lastWasEmpty = false;
-        let lastLines = 1; // Toujours au moins 1 ligne de saisie
+        let lastLines = 1; // Always at least 1 input line
         process.stdin.setRawMode(true);
         process.stdin.resume();
         process.stdin.setEncoding('utf8');
-        // Affiche le prompt et l'instruction une seule fois
+        // Show prompt and instruction only once
         process.stdout.write(prompt);
         process.stdout.write(chalk.gray('\n' + t('inputEndInstruction') + '\n'));
         redraw();
         function redraw() {
-            // Revenir tout en bas du bloc de saisie avant d'effacer/redessiner
+            // Move to the bottom of the input block before clearing/redrawing
             if (lastLines > 1) {
-                process.stdout.write(`\x1b[${lastLines - 1}E`); // Descend de lastLines-1 lignes
+                process.stdout.write(`\x1b[${lastLines - 1}E`);
             }
-            // Remonter en haut du bloc de saisie
-            if (lastLines > 1) {
-                process.stdout.write(`\x1b[${lastLines - 1}F`); // Remonte de lastLines-1 lignes au début de la ligne
-            }
-            // Efface uniquement les anciennes lignes de saisie utilisateur
-            for (let i = 0; i < lastLines; i++) {
-                process.stdout.write('\x1b[2K\r'); // Efface la ligne
-                if (i < lastLines - 1) process.stdout.write('\x1b[1B'); // Descend d'une ligne
-            }
-            // Remonter en haut du bloc pour réafficher
+            // Move to the top of the input block
             if (lastLines > 1) {
                 process.stdout.write(`\x1b[${lastLines - 1}F`);
             }
-            // Affiche toutes les lignes de saisie utilisateur
+            // Clear only the old user input lines
+            for (let i = 0; i < lastLines; i++) {
+                process.stdout.write('\x1b[2K\r');
+                if (i < lastLines - 1) process.stdout.write('\x1b[1B');
+            }
+            // Move back to the top of the block to reprint
+            if (lastLines > 1) {
+                process.stdout.write(`\x1b[${lastLines - 1}F`);
+            }
+            // Print all user input lines
             for (let i = 0; i < lines.length; i++) {
                 process.stdout.write((i === currentLine ? '> ' : '  ') + lines[i]);
                 if (i < lines.length - 1) process.stdout.write('\n');
             }
-            // Remonte le curseur si besoin
+            // Move cursor up if needed
             if (lines.length - 1 - currentLine > 0) {
                 process.stdout.write(`\x1b[${lines.length - 1 - currentLine}A`);
             }
-            // Place le curseur à la bonne colonne
+            // Place cursor at the correct column
             process.stdout.write(`\r\x1b[${2 + cursor}C`);
             lastLines = lines.length;
         }
@@ -65,13 +65,13 @@ export function getUserInput(prompt: string): Promise<string> {
             process.stdout.write('\n');
         }
         function onData(chunk: string) {
-            // Gère le collage (plusieurs caractères d'un coup)
+            // Handle paste (multiple characters at once)
             for (let i = 0; i < chunk.length; i++) {
                 const c = chunk[i];
                 if (c === '\u0003') { // Ctrl+C
                     cleanup();
                     process.exit();
-                } else if (c === '\r' || c === '\n') { // Entrée
+                } else if (c === '\r' || c === '\n') { // Enter
                     if (lines[currentLine] === '') {
                         if (lastWasEmpty) {
                             cleanup();
@@ -99,19 +99,19 @@ export function getUserInput(prompt: string): Promise<string> {
                             currentLine--;
                         }
                     }
-                } else if (chunk.slice(i, i+3) === '\u001b[A') { // Flèche haut
+                } else if (chunk.slice(i, i+3) === '\u001b[A') { // Up arrow
                     i += 2;
                     if (currentLine > 0) {
                         currentLine--;
                         cursor = Math.min(cursor, lines[currentLine]?.length ?? 0);
                     }
-                } else if (chunk.slice(i, i+3) === '\u001b[B') { // Flèche bas
+                } else if (chunk.slice(i, i+3) === '\u001b[B') { // Down arrow
                     i += 2;
                     if (currentLine < lines.length - 1) {
                         currentLine++;
                         cursor = Math.min(cursor, lines[currentLine]?.length ?? 0);
                     }
-                } else if (chunk.slice(i, i+3) === '\u001b[D') { // Flèche gauche
+                } else if (chunk.slice(i, i+3) === '\u001b[D') { // Left arrow
                     i += 2;
                     if (cursor > 0) {
                         cursor--;
@@ -119,7 +119,7 @@ export function getUserInput(prompt: string): Promise<string> {
                         currentLine--;
                         cursor = lines[currentLine]?.length ?? 0;
                     }
-                } else if (chunk.slice(i, i+3) === '\u001b[C') { // Flèche droite
+                } else if (chunk.slice(i, i+3) === '\u001b[C') { // Right arrow
                     i += 2;
                     if (lines[currentLine] && cursor < lines[currentLine]!.length) {
                         cursor++;
@@ -127,7 +127,7 @@ export function getUserInput(prompt: string): Promise<string> {
                         currentLine++;
                         cursor = 0;
                     }
-                } else if (typeof c === 'string' && c >= ' ' && c.length === 1 && lines[currentLine] !== undefined) { // Caractère imprimable
+                } else if (typeof c === 'string' && c >= ' ' && c.length === 1 && lines[currentLine] !== undefined) { // Printable character
                     lines[currentLine] = lines[currentLine]!.slice(0, cursor) + c + lines[currentLine]!.slice(cursor);
                     cursor++;
                 }
@@ -170,7 +170,7 @@ function getUserKey(question: string, answers: string[]) : Promise<string> {
 }
 
 export async function getUserConfirmation(question: string): Promise<boolean> {
-    // Choix des touches selon la langue
+    // Key choices according to language
     const yesKey = t('commandConfirmYes').charAt(0).toLowerCase();
     const noKey = t('commandConfirmNo').charAt(0).toLowerCase();
     const result = await getUserKey(question, [yesKey, noKey]);
@@ -186,11 +186,11 @@ export async function getUserConfirmation(question: string): Promise<boolean> {
 }
 
 /**
- * Affiche une liste de choix et permet à l'utilisateur de sélectionner une option ou de saisir une réponse personnalisée.
- * @param question La question à afficher
- * @param choices Tableau de choix proposés (strings)
- * @param otherLabel Libellé pour l'option "Autre" (par défaut : "Autre...")
- * @returns La valeur choisie ou saisie par l'utilisateur
+ * Displays a list of choices and allows the user to select an option or enter a custom response.
+ * @param question The question to display
+ * @param choices Array of proposed choices (strings)
+ * @param otherLabel Label for the "Other" option (default: "Other...")
+ * @returns The value chosen or entered by the user
  */
 export async function selectFromChoices(question: string, choices: string[], otherLabel = t('otherLabel')): Promise<string> {
     const otherNum = choices.length + 1;

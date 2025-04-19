@@ -1,5 +1,4 @@
 import path from 'node:path';
-// import { fileURLToPath } from 'node:url'; // No longer needed for __dirname
 import os from 'node:os';
 
 // Helper to get the directory name of the current module

@@ -10,6 +10,7 @@ export function updateMemory(
     status: ActionStatus,
     errorMsg: string | null | undefined = null
 ): void {
+    // Validate memory object and initialize action_log if necessary
     if (!memory || typeof memory !== 'object' || !memory.action_log) {
         if (memory && typeof memory === 'object') {
             (memory as AgentMemory).action_log = [];
@@ -18,6 +19,7 @@ export function updateMemory(
             return;
         }
     }
+    // Create a new log entry with timestamp and action details
     const timestamp = new Date().toISOString();
     const logEntry: ActionLogEntry = {
         timestamp,
@@ -28,7 +30,9 @@ export function updateMemory(
     if (errorMsg) {
         logEntry.errorMsg = errorMsg;
     }
+    // Add the new log entry to the action_log
     memory.action_log.push(logEntry);
+    // Ensure the action_log does not exceed the maximum allowed entries
     if (memory.action_log.length > MAX_ACTION_LOG_ENTRIES) {
         memory.action_log.shift();
     }

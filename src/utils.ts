@@ -4,7 +4,7 @@ import { getUserInput, getUserConfirmation, closeActiveReadlineInterface, select
 import { loadData, saveData } from './utils/persistence.js';
 import { updateMemory } from './utils/memoryHelpers.js';
 
-// Détection dynamique de la langue système (robuste et typée)
+// Dynamic system language detection (robust and typed)
 const envLang = process.env.LANG;
 let envLocale: string = 'en';
 if (typeof envLang === 'string') {

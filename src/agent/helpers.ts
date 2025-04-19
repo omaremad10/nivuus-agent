@@ -1,4 +1,4 @@
-// Fonctions utilitaires extraites de agent.ts
+// Utility functions extracted from agent.ts
 export function parseAndUpdateSystemInfo(content: string, agentMemory: any, chalk: any) {
     const lines = content.split('\n');
     const systemInfoRegex = /^\s*([\w_.-]+)\s*:\s*(.+)$/;

@@ -1,4 +1,4 @@
-// Constantes de chemin et de configuration extraites
+// Path and configuration constants extracted
 import path from 'node:path';
 import os from 'node:os';
 
