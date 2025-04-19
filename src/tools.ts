@@ -34,26 +34,11 @@ export const tools = [
     {
         type: "function",
         function: {
-            name: "run_bash_command",
-            description: "Exécute une commande shell Linux sur le système local. Demande une confirmation utilisateur.",
-            parameters: {
-                type: "object",
-                properties: {
-                    command: { type: "string", description: "Commande shell complète à exécuter." },
-                    purpose: { type: "string", description: "Phrase expliquant pourquoi cette commande doit être exécutée." }
-                },
-                required: ["command", "purpose"],
-            },
-        },
-    },
-    {
-        type: "function",
-        function: {
             name: "read_file",
-            description: `Lit le contenu d'un fichier texte spécifique. Limité à ${MAX_DIRECT_READ_SIZE / 1024}KB.`,
+            description: `Read the content of a specific text file. Limited to ${MAX_DIRECT_READ_SIZE / 1024}KB.`,
             parameters: {
                 type: "object",
-                properties: { filepath: { type: "string", description: "Chemin du fichier à lire." } },
+                properties: { filepath: { type: "string", description: "Path of the file to read." } },
                 required: ["filepath"],
             },
         },
@@ -61,24 +46,12 @@ export const tools = [
     {
         type: "function",
         function: {
-            name: "web_search",
-            description: "Effectue une recherche web via DuckDuckGo.",
-            parameters: {
-                type: "object",
-                properties: { query: { type: "string", description: "Terme ou question à rechercher." } },
-                required: ["query"],
-            },
-        },
-    },
-    {
-        type: "function",
-        function: {
             name: "list_directory",
-            description: "Liste le contenu d'un répertoire.",
+            description: "List the contents of a directory.",
             parameters: {
                 type: "object",
                 properties: {
-                    directoryPath: { type: "string", description: "Chemin du répertoire à lister." }
+                    directoryPath: { type: "string", description: "Path of the directory to list." }
                 },
                 required: ["directoryPath"],
             },
@@ -88,12 +61,12 @@ export const tools = [
         type: "function",
         function: {
             name: "write_file",
-            description: "Écrit ou écrase un fichier avec le contenu fourni. Demande confirmation.",
+            description: "Write or overwrite a file with the provided content. ",
             parameters: {
                 type: "object",
                 properties: {
-                    filepath: { type: "string", description: "Chemin du fichier à écrire." },
-                    content: { type: "string", description: "Contenu à écrire dans le fichier." },
+                    filepath: { type: "string", description: "Path of the file to write." },
+                    content: { type: "string", description: "Content to write into the file." },
                 },
                 required: ["filepath", "content"],
             },
@@ -103,11 +76,11 @@ export const tools = [
         type: "function",
         function: {
             name: "get_memory_keys",
-            description: t('toolDescriptionGetMemoryKeys'),
+            description: "List all memory keys at the given path (or root if not specified).",
             parameters: {
                 type: "object",
                 properties: {
-                    path: { type: "string", description: t('toolParamMemoryPathOptional') }
+                    path: { type: "string", description: "Memory path (optional)." }
                 },
                 required: [],
             },
@@ -117,11 +90,11 @@ export const tools = [
         type: "function",
         function: {
             name: "get_memory_value",
-            description: t('toolDescriptionGetMemoryValue'),
+            description: "Get the value stored at the given memory path.",
             parameters: {
                 type: "object",
                 properties: {
-                    path: { type: "string", description: t('toolParamMemoryPathRequired') }
+                    path: { type: "string", description: "Memory path (required)." }
                 },
                 required: ["path"],
             },
@@ -131,12 +104,12 @@ export const tools = [
         type: "function",
         function: {
             name: "set_memory_value",
-            description: t('toolDescriptionSetMemoryValue'),
+            description: "Set a value at the given memory path.",
             parameters: {
                 type: "object",
                 properties: {
-                    path: { type: "string", description: t('toolParamMemoryPathRequired') },
-                    value: { description: t('toolParamMemoryValue') }
+                    path: { type: "string", description: "Memory path (required)." },
+                    value: { description: "Value to store at the memory path." }
                 },
                 required: ["path", "value"],
             },
@@ -145,17 +118,44 @@ export const tools = [
     {
         type: "function",
         function: {
+            name: "web_search",
+            description: "Perform a web search using DuckDuckGo.",
+            parameters: {
+                type: "object",
+                properties: { query: { type: "string", description: "Term or question to search for." } },
+                required: ["query"],
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
             name: "ask_user",
-            description: "Pose une question à l'utilisateur humain pour obtenir une clarification ou une confirmation.",
+            description: "Ask a question to the human user to get clarification or confirmation.",
             parameters: {
                 type: "object",
                 properties: {
-                    question: { type: "string", description: "Question à poser à l'utilisateur." },
+                    question: { type: "string", description: "Question to ask the user." },
                 },
                 required: ["question"],
             },
         },
     },
+    {
+        type: "function",
+        function: {
+            name: "run_bash_command",
+            description: "Execute a Linux shell command on the local system. ",
+            parameters: {
+                type: "object",
+                properties: {
+                    command: { type: "string", description: "Full shell command to execute." },
+                    purpose: { type: "string", description: "Phrase explaining why this command should be executed." }
+                },
+                required: ["command", "purpose"],
+            },
+        },
+    }
 ];
 
 // Index des outils découpés

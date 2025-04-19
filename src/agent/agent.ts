@@ -47,6 +47,7 @@ import {
 } from '../utils.js';
 import { parseAndUpdateSystemInfo } from './helpers.js';
 import type { ActionStatus, ChatMessage, ActionLogEntry, AgentMemory } from './types.js';
+import { setAgentMemoryRef as setMemoryToolsRef } from '../tools/memoryTools.js';
 
 // --- Determine API Key to Use ---
 let apiKeyToUse: string | undefined;
@@ -85,7 +86,7 @@ const availableFunctions: { [key: string]: Function } = {
     "web_search": performWebSearch,
     "list_directory": listDirectory, // Added listDirectory
     "write_file": writeFileWithConfirmation, // <-- Add the mapping
-    "ask_user": askUser, // <-- Ajouter le mapping
+    //"ask_user": askUser, // <-- Ajouter le mapping
     "get_memory_keys": get_memory_keys,
     "get_memory_value": get_memory_value,
     "set_memory_value": set_memory_value,
@@ -193,6 +194,7 @@ export async function main() {
     // Reload agentMemory from file, then reinject the reference
     agentMemory = await loadData<AgentMemory>(MEMORY_FILE, { system_info: {}, action_log: [], notes: "" });
     setToolsMemoryRef(agentMemory); // Reinject reference after loading
+    setMemoryToolsRef(agentMemory); // Injection mémoire pour memoryTools
 
     // --- Clean up potentially incomplete tool call from last run ---
     if (conversationHistory.length > 0) {
@@ -225,78 +227,123 @@ export async function main() {
     }
 
     // --- Main Conversation Loop ---
-    console.log(chalk.blue(t('promptInstruction'))); // Use t()
 
     console.log(chalk.blue(chalk.bold(t('agentStarted', { modelName: MODEL_NAME })))); // Use t()
     console.log(chalk.cyan(t('mainScript', { scriptFilename: SCRIPT_FILENAME }))); // Use t()
-    console.log(chalk.cyan(t('promptInstruction'))); // Use t()
 
     // Determine the first prompt to send to the AI
     const defaultInstruction = t('defaultInstruction');
     let isFirstIteration = true; // Pour gérer le tout premier message
 
-    // Handler for CTRL+C (SIGINT) - Prioritize Save
-    process.on('SIGINT', () => { // Keep synchronous
-        // Use console.log for synchronous logging in signal handlers
-        console.log(chalk.yellow.bold('\n[SIGINT] Signal received. Prioritizing immediate save...')); // Log start
 
-        // --- Attempt Synchronous Save FIRST ---
-        try {
-            console.log(chalk.dim(`[SIGINT] Attempting IMMEDIATE sync save to: ${MEMORY_FILE}`));
-            fs.writeFileSync(MEMORY_FILE, JSON.stringify(agentMemory, null, 2), 'utf-8');
-            console.log(chalk.dim(`[SIGINT] Saved memory to ${MEMORY_FILE}.`));
-
-            console.log(chalk.dim(`[SIGINT] Attempting IMMEDIATE sync save to: ${HISTORY_FILE}`));
-            fs.writeFileSync(HISTORY_FILE, JSON.stringify(conversationHistory, null, 2), 'utf-8');
-            console.log(chalk.dim(`[SIGINT] Saved history to ${HISTORY_FILE}.`));
-
-            console.log(chalk.green(t('saveCompleted')));
-        } catch (saveError) {
-            console.error(chalk.red(t('saveError')), saveError);
-            // Log error but continue to exit
+    // Nettoyage de l'historique avant chaque appel API pour garantir la cohérence tool_call/tool
+    function cleanHistoryForToolCalls(history: ChatMessage[]): ChatMessage[] {
+        const cleaned: ChatMessage[] = [];
+        let i = 0;
+        while (i < history.length) {
+            const msg = history[i];
+            if (msg && msg.role === 'assistant' && Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0) {
+                // Vérifier qu'il y a un message tool pour chaque tool_call_id juste après
+                let allToolsPresent = true;
+                for (const toolCall of msg.tool_calls) {
+                    const nextMsg = history[i + 1];
+                    if (!nextMsg || nextMsg.role !== 'tool' || nextMsg.tool_call_id !== toolCall.id) {
+                        allToolsPresent = false;
+                        break;
+                    }
+                    i++;
+                    cleaned.push(nextMsg);
+                }
+                if (allToolsPresent && msg !== undefined) {
+                    cleaned.push(msg as ChatMessage);
+                }
+                // Si tool(s) manquant(s), on saute ce message assistant et les tool_calls orphelins
+            } else if (msg) {
+                cleaned.push(msg);
+            }
+            i++;
         }
-        // --- End Save Attempt ---
+        return cleaned;
+    }
 
-        // Optional: Attempt to destroy stdin afterwards, but don't rely on it finishing
-        try {
-            console.log(chalk.dim('[SIGINT] Attempting to destroy stdin (after save)...'));
-            process.stdin.destroy();
-        } catch (stdinError) {
-            // Ignore errors here, main goal was saving
+    // Nettoyage strict de l'historique pour la conformité OpenAI :
+    function cleanHistoryForOpenAITools(history: ChatMessage[]): ChatMessage[] {
+        const cleaned: ChatMessage[] = [];
+        let i = 0;
+        while (i < history.length) {
+            const msg = history[i];
+            // Si c'est un assistant avec tool_calls, vérifier que chaque tool_call est suivi d'un message tool correspondant
+            if (msg && msg.role === 'assistant' && Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0) {
+                let allToolsPresent = true;
+                const toolCallIds = msg.tool_calls.map(tc => tc.id);
+                const toolMessages: ChatMessage[] = [];
+                for (let j = 0; j < toolCallIds.length; j++) {
+                    const nextMsg = history[i + 1 + j];
+                    if (!nextMsg || nextMsg.role !== 'tool' || nextMsg.tool_call_id !== toolCallIds[j]) {
+                        allToolsPresent = false;
+                        break;
+                    }
+                    toolMessages.push(nextMsg);
+                }
+                if (allToolsPresent) {
+                    cleaned.push(msg);
+                    cleaned.push(...toolMessages);
+                    i += toolCallIds.length; // Sauter les tool messages déjà ajoutés
+                }
+                // Sinon, on saute ce message assistant et les tool orphelins
+            } else if (msg && msg.role === 'tool') {
+                // Ne jamais ajouter un message tool orphelin (non précédé d'un assistant avec tool_calls)
+                // On vérifie que le message précédent dans cleaned est bien un assistant avec le bon tool_call_id
+                const prev = cleaned[cleaned.length - 1];
+                if (
+                    prev &&
+                    prev.role === 'assistant' &&
+                    Array.isArray(prev.tool_calls) &&
+                    prev.tool_calls.some(tc => tc.id === msg.tool_call_id)
+                ) {
+                    cleaned.push(msg);
+                }
+                // Sinon, on saute ce message tool orphelin
+            } else if (msg) {
+                cleaned.push(msg);
+            }
+            i++;
         }
-
-        console.log(chalk.blue(t('exiting')));
-        console.log('[SIGINT] Calling process.exit(0) IMMEDIATELY after save attempt...'); // Log before exit
-        // Force exit immediately after attempting save.
-        process.exit(0);
-    });
+        return cleaned;
+    }
 
     // Main loop
     while (true) {
         try {
-            // Préparer le message "user" pour l'API
-            let userMessageContent: string;
-            if (isFirstIteration) {
-                userMessageContent = (conversationHistory.length <= 1 && Object.keys(agentMemory.system_info || {}).length === 0)
-                    ? t('proactiveDiscoverSystem') // Premier démarrage
-                    : defaultInstruction; // Reprise ou instruction par défaut
-                isFirstIteration = false;
-                console.log(chalk.dim(`[Agent] Starting with instruction: "${userMessageContent}"`));
-            } else {
-                // Message automatique pour continuer
-                userMessageContent = t('autoContinuePrompt');
-                console.log(chalk.dim(`[Agent] Sending auto-continue prompt.`));
-            }
+            // Si l'historique est vide ou le dernier message assistant n'est pas un tool_call, demander un input utilisateur
+            let needUserInput = true;
 
-            // Ajouter le message utilisateur à l'historique
-            conversationHistory.push({ role: "user", content: userMessageContent });
+            if (conversationHistory.length > 0) {
+                const lastMsg = conversationHistory[conversationHistory.length - 1];
+                if (lastMsg && lastMsg.role === 'assistant' && Array.isArray(lastMsg.tool_calls) && lastMsg.tool_calls.length > 0) {
+                    needUserInput = false;
+                }
+                else if (conversationHistory.length === 1) 
+                    needUserInput = false; 
+            }
+            
+
+
+            if (needUserInput) {
+                let userMessageContent = await getUserInput(chalk.yellowBright(t('userPrompt')));
+                if (!userMessageContent || userMessageContent.trim() === "") {
+                    userMessageContent = defaultInstruction; // Use default instruction if empty
+                }
+                conversationHistory.push({ role: "user", content: userMessageContent });
+            }
 
             let needsApiCall = true;
             while(needsApiCall) {
-                needsApiCall = false; // Assume only one call is needed
+                needsApiCall = false;
 
                 // Prepare messages for the API (with memory summary)
-                const apiMessagesForCall = [...conversationHistory]; // Use a copy for the call
+                const cleanedHistory = cleanHistoryForOpenAITools(conversationHistory);
+                const apiMessagesForCall = [...cleanedHistory]; // Use a copy for the call
                 // Add memory summary if applicable
                 if (agentMemory && (Object.keys(agentMemory.system_info || {}).length > 0 || (agentMemory.action_log || []).length > 0 || agentMemory.notes)) {
                     let memorySummary = chalk.bold(t('memorySummaryTitle') + "\n"); // Use t()
@@ -426,7 +473,7 @@ export async function main() {
                 }
 
                 // Add assistant's response (or tool calls) to history
-                conversationHistory.push(responseMessage as ChatMessage); // Cast needed if responseMessage structure matches ChatMessage
+                conversationHistory.push(responseMessage as ChatMessage);
 
                 // --- Handle Tool Calls ---
                 const toolCalls = responseMessage.tool_calls;
@@ -545,106 +592,17 @@ export async function main() {
                     // Add all tool results to history
                     toolResults.forEach(toolMessage => conversationHistory.push(toolMessage));
 
-                    // Correction : le spinner ne s'affiche que si AUCUN tool_call du lot n'était de type run_bash_command ou write_file
-                    const hasConfirmationTool = toolCalls.some(tc => ['run_bash_command', 'write_file'].includes(tc.function.name));
-                    if (!hasConfirmationTool) {
-                        const spinner2 = ora(t('sendingToolResults')).start();
-                        // ...existing code pour l'appel API...
-                        // Avant l'appel à openai.chat.completions.create avec apiMessagesWithToolResults
-                        // Générer apiMessagesWithToolResults à partir de conversationHistory
-                        const apiMessagesWithToolResults = conversationHistory
-                            .map((msg): ChatCompletionMessageParam | null => {
-                                if (!msg.role) return null;
-                                if (msg.role === 'assistant' && msg.tool_calls && msg.tool_calls.length > 0) {
-                                    return {
-                                        role: 'assistant',
-                                        content: msg.content ?? null,
-                                        tool_calls: msg.tool_calls,
-                                    };
-                                } else if (msg.role === 'tool' && msg.tool_call_id) {
-                                    const contentString = (msg.content === null || msg.content === undefined) ? 'null' : String(msg.content);
-                                    return {
-                                        role: 'tool',
-                                        content: contentString,
-                                        tool_call_id: msg.tool_call_id,
-                                        ...(msg.name && { name: msg.name }),
-                                    };
-                                } else if (msg.role === 'system' && msg.content !== null && msg.content !== undefined) {
-                                    return {
-                                        role: 'system',
-                                        content: String(msg.content),
-                                    };
-                                } else if (msg.role === 'user' && msg.content !== null && msg.content !== undefined) {
-                                    return {
-                                        role: 'user',
-                                        content: String(msg.content),
-                                    };
-                                } else if (msg.role === 'assistant' && msg.content !== null && msg.content !== undefined) {
-                                    return {
-                                        role: 'assistant',
-                                        content: String(msg.content),
-                                    };
-                                }
-                                return null;
-                            })
-                            .filter((msg): msg is ChatCompletionMessageParam => msg !== null);
-                        try {
-                            const secondResponse = await openai.chat.completions.create({
-                                model: MODEL_NAME,
-                                messages: apiMessagesWithToolResults, // Use the correctly filtered/mapped messages
-                                tools: tools as ChatCompletionTool[],
-                                tool_choice: "auto",
-                                // No tools needed here usually
-                            });
-                            spinner2.succeed(t('receivedFinalResponse')); // Use t()
-
-                            // Use optional chaining
-                            const finalMessage = secondResponse.choices[0]?.message;
-
-                            if (finalMessage) {
-                                conversationHistory.push(finalMessage as ChatMessage); // Add final response
-                                console.log(chalk.bold(t('assistantResponseHeader'))); // Use t()
-                                console.log(finalMessage.content);
-                                updateMemory(agentMemory, 'API Response', MODEL_NAME, 'Success');
-
-                                // --- Parse and update system_info from response ---
-                                if (finalMessage.content) {
-                                    parseAndUpdateSystemInfo(finalMessage.content, agentMemory, chalk);
-                                }
-                                // --- End Parse and update ---
-
-                            } else {
-                                console.error(chalk.red(t('errorNoFinalResponse')));
-                                updateMemory(agentMemory, 'API Call (Post-Tool)', MODEL_NAME, 'Failure', 'No final response message');
-                            }
-                        } catch (error) { // Catch errors specifically from the second API call
-                            spinner2.fail(chalk.red(t('apiError'))); // Use t()
-                            // Use type guard for OpenAI API errors
-                            if (error instanceof OpenAI.APIError) {
-                                console.error(chalk.red(`\nOpenAI API Error (${error.status || 'N/A'}): ${error.message}`));
-                                // Use error.error for detailed error info in SDK v4+
-                                console.error(chalk.dim(JSON.stringify(error.error, null, 2)));
-                            } else if (error instanceof Error) { // Check if it's a generic Error
-                                console.error(chalk.red(`\nError calling API: ${error.message}`));
-                            } else {
-                                console.error(chalk.red(`\nError calling API: ${String(error)}`));
-                            }
-
-                            // Rethrow the error to be caught by the main loop's handler for retry logic
-                            throw error; // <-- Ensure error is re-thrown
-                        }
-                    }
+                    // Après avoir ajouté les tool results, relancer automatiquement l'appel API
+                    needsApiCall = true;
+                    continue;
                 } else {
                     // --- Handle Regular Text Response ---
                     updateMemory(agentMemory, 'API Response', MODEL_NAME, 'Success');
-                    console.log(chalk.bold(t('assistantResponseHeader'))); // Use t()
+                    console.log(chalk.bold(t('assistantResponseHeader')));
                     console.log(responseMessage.content);
-
-                    // --- Parse and update system_info from response ---
                     if (responseMessage.content) {
                         parseAndUpdateSystemInfo(responseMessage.content, agentMemory, chalk);
                     }
-                    // --- End Parse and update ---
                 }
 
             } // End while(needsApiCall)

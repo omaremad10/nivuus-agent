@@ -20,7 +20,7 @@ export async function writeFileWithConfirmation(filepath: string, content: strin
     try {
         console.log(chalk.blue(chalk.bold(t('fileWriteConfirmPrompt'))));
         console.log(chalk.yellow(t('fileWriteConfirmProposed', { filepath: absolutePath })));
-        const contentSnippet = content.substring(0, 200) + (content.length > 200 ? "..." : "");
+        const contentSnippet = content;
         console.log(chalk.blue(t('fileWriteConfirmContent', { contentSnippet })));
         const confirm = await getUserConfirmation(t('confirmWrite'));
         if (!confirm) {

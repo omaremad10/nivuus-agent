@@ -4,8 +4,8 @@
   "thankYou": "Merci",
   "welcome": "Bienvenue",
   "confirmExecute": "Confirmer l'exécution ?",
-  "yesNo": "(oui/non)",
-  "pleaseAnswerYesNo": "Veuillez répondre par 'oui' ou 'non'.",
+  "yesNo": "(o/n)",
+  "pleaseAnswerYesNo": "Veuillez répondre par 'o' ou 'n'.",
   "executionCancelled": "Exécution annulée.",
   "shuttingDown": "👋 Arrêt de l'agent...",
   "finalSaveCompleted": "💾 Sauvegarde finale terminée.",
@@ -151,5 +151,6 @@
   "promptUserResponse": "Votre réponse : ",
   "errorToolArgsParse": "Erreur d'analyse des arguments pour l'outil {functionName}. Args: {args}. Erreur: {message}",
   "commandConfirmYes": "oui",
-  "commandConfirmNo": "non"
+  "commandConfirmNo": "non",
+  "userPrompt": "Entrez votre message :"
 }
