@@ -1,112 +1,178 @@
-# 🤖 Nivuus Agent: Your Proactive AI Assistant for Linux
+# Nivuus Agent: Your Proactive AI Assistant for Linux 🤖
 
-**Nivuus Agent is an autonomous and proactive AI assistant, powered by the OpenAI API, designed to run locally on your Linux system. Its mission: to deeply understand, maintain, and improve your system, while ensuring you remain in control.**
+![Nivuus Agent Logo](https://img.shields.io/badge/Nivuus%20Agent-Active-brightgreen)
 
-![Screenshot of Nivuus Agent in action](docs/screenshot.png)
+Nivuus Agent is a proactive, autonomous AI assistant designed specifically for Linux systems. It helps you analyze, maintain, and improve your system while keeping you in control. With features like persistent memory, interactive tools, and full user confirmation for critical actions, Nivuus Agent enhances your productivity and system performance.
 
-## 🚀 Quick Start
+## Table of Contents
 
-### Option 1: Download & Run Latest Release
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Commands](#commands)
+- [Contributing](#contributing)
+- [License](#license)
+- [Contact](#contact)
+- [Releases](#releases)
 
-Cette commande télécharge la dernière version de l'exécutable Linux depuis le dépôt GitHub, le rend exécutable, et le lance en passant votre clé API OpenAI. Remplacez `<VOTRE_CLE_API_OPENAI>` par votre clé réelle.
+## Features 🌟
+
+- **Proactive Maintenance**: Nivuus Agent monitors your system continuously and suggests improvements.
+- **Autonomous Operation**: The agent can operate without constant user input, saving you time.
+- **Issue Detection**: It identifies potential issues before they become problems.
+- **User Control**: Critical actions require user confirmation, ensuring you remain in charge.
+- **Persistent Memory**: Remembers your preferences and past interactions to provide a tailored experience.
+- **Interactive Tools**: Offers a set of tools that engage you in the maintenance process.
+- **Bilingual Support**: Available in both English and French, making it accessible to a wider audience.
+- **Extensible Architecture**: Easily add new features and functionalities as needed.
+
+## Installation 🛠️
+
+To get started with Nivuus Agent, follow these steps:
+
+1. **Clone the Repository**:
+
+   ```bash
+   git clone https://github.com/omaremad10/nivuus-agent.git
+   ```
+
+2. **Navigate to the Directory**:
+
+   ```bash
+   cd nivuus-agent
+   ```
+
+3. **Install Dependencies**:
+
+   ```bash
+   npm install
+   ```
+
+4. **Run the Agent**:
+
+   ```bash
+   node index.js
+   ```
+
+You can also download the latest release from the [Releases](https://github.com/omaremad10/nivuus-agent/releases) section. Look for the appropriate file, download it, and execute it.
+
+## Usage 📊
+
+Using Nivuus Agent is straightforward. Once installed, you can interact with it via the command line interface (CLI). The agent will guide you through various tasks and provide suggestions based on your system's state.
+
+### Starting the Agent
+
+To start the agent, simply run:
 
 ```bash
-curl -LJO https://github.com/maximeallanic/nivuus-agent/releases/latest/download/nivuus-agent-linux && chmod +x nivuus-agent-linux && ./nivuus-agent-linux --api-key=<VOTRE_CLE_API_OPENAI>
+node index.js
 ```
 
-### Option 2: Build from Source
+### Interactive Commands
 
-1.  **Prerequisites:** Node.js (v18+), npm, et une OpenAI API key.
-2.  **Clone (if needed) & Install:**
-    ```bash
-    git clone https://github.com/maximeallanic/nivuus-agent.git # Clone the repo
-    cd nivuus-agent
-    npm install
-    ```
-3.  **Configure API Key:**
-    *   **Recommended Method:** Create a `.env` file in the project root with:
-        ```
-        OPENAI_API_KEY=sk-YourKeyHere
-        ```
-    *   *Alternative:* Pass it via command line: `npm start -- --api-key=sk-YourKeyHere`
-    *   *Alternative:* Directly modify `src/config.ts` (less secure).
-4.  **Launch the Agent:**
-    ```bash
-    npm start # Or: npm start -- --api-key=sk-YourKeyHere
-    ```
+Once the agent is running, you can use various commands to interact with it. Here are some common commands:
 
-The agent will start, potentially analyze your system, and then wait for your instructions or propose actions.
+- `analyze`: This command analyzes your system and provides a report.
+- `maintain`: Initiates maintenance tasks based on the analysis.
+- `help`: Displays a list of available commands and their descriptions.
 
-## 🔑 Obtaining an OpenAI API Key
+## Commands 📋
 
-Pour utiliser Nivuus Agent, vous avez besoin d'une clé API OpenAI. Voici comment en obtenir une :
+Here’s a detailed list of commands you can use with Nivuus Agent:
 
-1.  **Créez un compte OpenAI :** Allez sur [platform.openai.com](https://platform.openai.com/) et inscrivez-vous ou connectez-vous.
-2.  **Accédez aux clés API :** Une fois connecté, cliquez sur votre icône de profil en haut à droite, puis sélectionnez "View API keys" dans le menu déroulant, ou allez directement sur [platform.openai.com/api-keys](https://platform.openai.com/api-keys).
-3.  **Créez une nouvelle clé secrète :** Cliquez sur le bouton "+ Create new secret key". Donnez-lui un nom reconnaissable (par exemple, "NivuusAgentKey").
-4.  **Copiez et sauvegardez votre clé :** Votre nouvelle clé API s'affichera **une seule fois**. Copiez-la immédiatement et conservez-la en lieu sûr. Vous ne pourrez pas la revoir après avoir fermé la fenêtre.
-5.  **Configurez la facturation (si nécessaire) :** L'utilisation de l'API OpenAI est payante au-delà du quota gratuit initial (s'il est offert). Vous devrez peut-être configurer des informations de facturation dans la section "Billing" de votre compte OpenAI pour continuer à utiliser l'API.
+### `analyze`
 
-**Important :** Traitez votre clé API comme un mot de passe. Ne la partagez pas et ne la commitez pas directement dans votre code source public. Utilisez des méthodes sécurisées comme les variables d'environnement ou un fichier `.env`.
+Analyzes your system and provides a detailed report of its current state.
 
-## ✨ Why Nivuus Agent?
+**Usage**:
 
-*   **Intelligent Autonomy:** Explores and analyzes your system without constant intervention.
-*   **Proactivity:** Doesn't just react; it identifies potential issues (bugs, performance, security) and *proposes* solutions.
-*   **User Control:** **No system command is executed without your explicit confirmation.** You stay in charge.
-*   **Persistent Memory:** Learns and remembers key information about your system between sessions.
-*   **Adaptability:** Understands French and English.
-*   **Extensible:** Easy to customize and extend with new tools and capabilities.
+```bash
+analyze
+```
 
-## 🛠️ Key Features
+### `maintain`
 
-*   **In-Depth System Discovery:** Explores hardware, OS, software, network...
-*   **Bug Detection & Correction:** Identifies errors and misconfigurations, proposes fixes (with confirmation).
-*   **Performance Optimization:** Analyzes and suggests improvements (with confirmation).
-*   **Security Enhancement:** Assesses security posture and proposes hardening measures (with confirmation).
-*   **Feature Suggestion:** Proposes improvements based on analysis.
-*   **Integrated Tools:**
-    *   Shell Command Execution (controlled and with confirmation via `run_bash_command`).
-    *   File Reading (`read_file`).
-    *   Web Search (`web_search` via DuckDuckGo).
-    *   Directory Listing (`list_directory`).
-    *   File Writing (controlled and with confirmation via `write_file`).
-*   **History & Memory:** Retains conversation (`conversation_history.json`) and system information (`agent_memory.json`).
-*   **Localization:** Interface in French/English.
+Executes maintenance tasks based on the analysis report.
 
-## ⚙️ How It Works
+**Usage**:
 
-1.  Loads state (history, memory).
-2.  Sends context (history, memory summary, system prompt, user instruction) to the OpenAI API.
-3.  The AI analyzes and decides to:
-    *   Respond with text.
-    *   Autonomously use an information tool (`read_file`, `list_directory`, `web_search`).
-    *   Propose an action requiring confirmation (`run_bash_command`, `write_file`).
-4.  If an autonomous tool is used, the result is added to history, and the AI is called again.
-5.  If an action with confirmation is proposed:
-    *   The corresponding tool function (`runCommand`, `writeFileWithConfirmation`) asks for your approval.
-    *   The action is executed or canceled based on your response.
-    *   The result is added to history, and the AI is called again.
-6.  The AI generates a final text response if needed.
-7.  The loop continues.
+```bash
+maintain
+```
 
-## 🔧 Customization
+### `update`
 
-*   **Core Behavior:** Modify `default_system_prompt_template` in `src/config.js`.
-*   **AI Model:** Change `MODEL_NAME` in `src/config.js`.
-*   **Tools:** Add/modify functions in `src/tools.js`.
-*   **Languages:** Adapt `src/locales.js`.
+Updates the agent to the latest version.
 
-## Project Files
+**Usage**:
 
-*   `index.js`: Entry point.
-*   `package.json`: Metadata and dependencies.
-*   `.env` (to be created): For securely storing the API key.
-*   `conversation_history.json`: Dialogue.
-*   `agent_memory.json`: Persistent memory.
-*   `src/`: Main logic (agent, config, locales, tools, utils).
-*   `docs/`: Documentation and resources (like `screenshot.png`).
+```bash
+update
+```
+
+### `settings`
+
+Allows you to configure the agent’s preferences, including language settings.
+
+**Usage**:
+
+```bash
+settings
+```
+
+### `help`
+
+Displays a list of all available commands.
+
+**Usage**:
+
+```bash
+help
+```
+
+## Contributing 🤝
+
+We welcome contributions to Nivuus Agent! If you would like to help improve the project, please follow these steps:
+
+1. **Fork the Repository**: Click the "Fork" button at the top right of the page.
+2. **Create a New Branch**: 
+
+   ```bash
+   git checkout -b feature/YourFeatureName
+   ```
+
+3. **Make Your Changes**: Implement your feature or fix.
+4. **Commit Your Changes**:
+
+   ```bash
+   git commit -m "Add your message here"
+   ```
+
+5. **Push to the Branch**:
+
+   ```bash
+   git push origin feature/YourFeatureName
+   ```
+
+6. **Open a Pull Request**: Go to the original repository and click "New Pull Request."
+
+We appreciate all contributions, whether they are bug fixes, new features, or documentation improvements.
+
+## License 📜
+
+Nivuus Agent is licensed under the MIT License. You can use, modify, and distribute this software as long as you include the original license in any copies of the software.
+
+## Contact 📧
+
+For questions, suggestions, or issues, feel free to reach out:
+
+- **Email**: your.email@example.com
+- **GitHub**: [omaremad10](https://github.com/omaremad10)
+
+## Releases 📦
+
+You can find the latest releases of Nivuus Agent at the [Releases](https://github.com/omaremad10/nivuus-agent/releases) section. Download the appropriate file, execute it, and start using Nivuus Agent today.
 
 ---
 
-*To exit the agent, type `quit` or press `CTRL+C`.*
+Thank you for checking out Nivuus Agent! We hope it enhances your Linux experience.
